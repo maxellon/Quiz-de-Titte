@@ -206,6 +206,17 @@ function compressImage(file){
   });
 }
 
+/* Probefrage: eingebaut, zählt keine Punkte */
+const PRACTICE = {
+  img: 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="800" height="600" fill="#F6E7B2"/><circle cx="400" cy="300" r="170" fill="#2F6FED"/><text x="400" y="560" text-anchor="middle" font-family="Arial,sans-serif" font-size="40" font-weight="bold" fill="#1B2430">Probefrage</text></svg>`),
+  text: 'Was ist auf dem Bild?',
+  a: 'Ein blauer Kreis',
+  b: 'Ein rotes Dreieck',
+  correct: 'A',
+};
+const qKey = st => st.practice ? 'practice' : String(st.q);
+const qLabel = st => st.practice ? 'Probefrage (zählt nicht)' : `Frage ${st.q+1} von ${st.total}`;
+
 /* ---------- Routing ---------- */
 const params = new URLSearchParams(location.search);
 const joinCode = (params.get('join') || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -401,17 +412,18 @@ function hostRender(){
         <div class="qr" id="qr"></div>
         <p class="muted">QR-Code scannen oder <strong>${esc(pageUrl().replace(/^https?:\/\//,''))}?spieler</strong> öffnen und den Code eingeben</p>
       </div>
-      <div class="card stack"><div class="row between"><h2 id="pcount">Noch niemand da</h2><button class="btn primary big" id="start">Erste Frage</button></div><div class="players" id="plist"></div></div>
+      <div class="card stack"><div class="row between"><h2 id="pcount">Noch niemand da</h2><div class="row"><button class="btn big" id="practice">Probefrage</button><button class="btn primary big" id="start">Erste Frage</button></div></div><div class="players" id="plist"></div></div>
       <div id="toast" class="notice" hidden></div>
     </div>`;
     new QRCode($('#qr'), {text: pageUrl() + '?join=' + code, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M});
     $('#start').onclick = () => hostAsk(0);
+    $('#practice').onclick = () => hostAsk(0, true);
     hostRenderPlayers();
   }
   else if(st.phase === 'question'){
-    const q = H.questions[st.q];
+    const q = st.practice ? PRACTICE : H.questions[st.q];
     app.innerHTML = `<div class="wrap">${head}
-      <div class="row between"><h2>Frage ${st.q+1} von ${st.total}</h2><span class="count" id="answered">0 Antworten</span></div>
+      <div class="row between"><h2>${qLabel(st)}</h2><span class="count" id="answered">0 Antworten</span></div>
       ${st.seconds ? `<div class="timer"><i id="tbar" style="width:100%"></i></div>` : ''}
       <img class="photo" src="${q.img}" alt="">
       ${q.text ? `<h2 class="center">${esc(q.text)}</h2>` : ''}
@@ -420,7 +432,7 @@ function hostRender(){
       <div id="toast" class="notice" hidden></div>
     </div>`;
     $('#reveal').onclick = () => hostReveal();
-    const ra = gref(code, 'answers/' + st.q);
+    const ra = gref(code, 'answers/' + qKey(st));
     const fa = ra.on('value', s => { H.answers = s.val() || {}; const n = Object.keys(H.answers).length; const el = $('#answered'); if(el) el.textContent = `${n} von ${Object.keys(H.players).length} Antworten`; });
     H.unsub.push(() => ra.off('value', fa));
     if(st.seconds){
@@ -433,16 +445,16 @@ function hostRender(){
     }
   }
   else if(st.phase === 'reveal'){
-    const q = H.questions[st.q];
+    const q = st.practice ? PRACTICE : H.questions[st.q];
     const res = H.results || {};
     const nA = Object.values(res).filter(x => x.choice==='A').length, nB = Object.values(res).filter(x => x.choice==='B').length;
     const tot = Math.max(1, nA+nB);
     const nRight = Object.values(res).filter(x => x.correct).length;
     const fastest = Object.entries(res).filter(([,x]) => x.correct).sort((a,b) => a[1].ms - b[1].ms).slice(0,3)
       .map(([pid,x],i) => `<div class="rank top"><span class="pos">${i+1}.</span><span style="overflow-wrap:anywhere">${esc((H.players[pid]||{}).name || '?')}</span><span class="score">${(x.ms/1000).toFixed(1)} s · +${x.gained}</span></div>`).join('');
-    const last = st.q+1 >= st.total;
+    const last = !st.practice && st.q+1 >= st.total;
     app.innerHTML = `<div class="wrap">${head}
-      <div class="row between"><h2>Frage ${st.q+1} von ${st.total}</h2><span class="count">${nRight} von ${Object.keys(H.players).length} richtig</span></div>
+      <div class="row between"><h2>${qLabel(st)}</h2><span class="count">${nRight} von ${Object.keys(H.players).length} richtig</span></div>
       <img class="photo" src="${q.img}" alt="" style="max-height:40vh">
       ${q.text ? `<h2 class="center">${esc(q.text)}</h2>` : ''}
       <div class="answers"><div class="answer a ${q.correct==='A'?'win':'dim'}"><span class="tag">A</span><span>${esc(q.a)}</span></div><div class="answer b ${q.correct==='B'?'win':'dim'}"><span class="tag">B</span><span>${esc(q.b)}</span></div></div>
@@ -451,13 +463,13 @@ function hostRender(){
         <div class="bar"><span class="tag b">B</span><div class="track"><div class="fill b" style="width:${100*nB/tot}%"></div></div><span class="n">${nB}</span></div>
       </div>
       ${fastest ? `<div class="card"><p class="eyebrow">Schnellste richtige Antworten</p>${fastest}</div>` : ''}
-      <div class="row between"><button class="btn" id="board">Zwischenstand</button><button class="btn primary big" id="next">${last ? 'Rangliste zeigen' : 'Nächste Frage'}</button></div>
+      <div class="row between"><button class="btn" id="board" ${st.practice?'hidden':''}>Zwischenstand</button><button class="btn primary big" id="next">${st.practice ? 'Jetzt richtig: Erste Frage' : last ? 'Rangliste zeigen' : 'Nächste Frage'}</button></div>
       <div class="card stack" id="boardBox" hidden><h2>Zwischenstand</h2><div id="ranking"></div></div>
       <div id="toast" class="notice" hidden></div>
     </div>`;
-    $('#next').onclick = () => last ? gref(code, 'state').update({phase:'end'}) : hostAsk(st.q+1);
+    $('#next').onclick = () => st.practice ? hostAsk(0) : last ? gref(code, 'state').update({phase:'end'}) : hostAsk(st.q+1);
     $('#board').onclick = () => { const b = $('#boardBox'); b.hidden = !b.hidden; if(!b.hidden) $('#ranking').innerHTML = rankingHtml(H.players, null, 10); };
-    if(!H.results) gref(code, 'results/' + st.q).once('value').then(s => { H.results = s.val() || {}; hostRender(); });
+    if(!H.results) gref(code, 'results/' + qKey(st)).once('value').then(s => { H.results = s.val() || {}; hostRender(); });
   }
   else if(st.phase === 'end'){
     const sorted = sortPlayers(H.players);
@@ -492,18 +504,20 @@ function rankingHtml(players, meId, max){
   let pos = 0, prev = null;
   return ps.map((p,i) => { if(p.score !== prev){ pos = i+1; prev = p.score; } return `<div class="rank ${pos<=3?'top':''} ${p.id===meId?'me':''}"><span class="pos">${pos}.</span><span style="overflow-wrap:anywhere">${esc(p.name)}</span><span class="score">${p.score}</span></div>`; }).slice(0,max).join('') || '<p class="muted">Keine Spieler</p>';
 }
-function hostAsk(i){
+function hostAsk(i, practice){
   H.results = null; H.answers = {};
-  gref(H.code, 'state').update({phase:'question', q:i, startedAt: firebase.database.ServerValue.TIMESTAMP}).catch(e => hostToast(e.message, true));
+  const upd = {phase:'question', q:i, practice: !!practice, startedAt: firebase.database.ServerValue.TIMESTAMP};
+  if(practice){ gref(H.code, 'answers/practice').remove().catch(()=>{}); gref(H.code, 'results/practice').remove().catch(()=>{}); }
+  gref(H.code, 'state').update(upd).catch(e => hostToast(e.message, true));
 }
 async function hostReveal(){
   if(H.busy) return; H.busy = true;
   clearInterval(H.timerId); H.timerId = null;
-  const st = H.state, code = H.code, q = H.questions[st.q];
+  const st = H.state, code = H.code, q = st.practice ? PRACTICE : H.questions[st.q], key = qKey(st);
   try{
-    const existing = await gref(code, 'results/' + st.q).once('value');
+    const existing = await gref(code, 'results/' + key).once('value');
     if(!existing.exists()){
-      const ans = (await gref(code, 'answers/' + st.q).once('value')).val() || {};
+      const ans = (await gref(code, 'answers/' + key).once('value')).val() || {};
       const players = (await gref(code, 'players').once('value')).val() || {};
       const upd = {};
       const rows = Object.entries(ans).filter(([pid]) => players[pid]).map(([pid, a]) => ({pid, choice: a.choice, ms: Math.max(0, (a.at || st.startedAt) - st.startedAt), correct: a.choice === q.correct}));
@@ -511,8 +525,8 @@ async function hostReveal(){
       for(const r of rows){
         const gained = r.correct ? points(r.ms, st.seconds) : 0;
         const speedRank = r.correct ? fast.findIndex(f => f.pid === r.pid) + 1 : 0;
-        upd['results/' + st.q + '/' + r.pid] = {choice: r.choice, correct: r.correct, gained, ms: r.ms, speedRank};
-        upd['players/' + r.pid + '/score'] = (players[r.pid].score || 0) + gained;
+        upd['results/' + key + '/' + r.pid] = {choice: r.choice, correct: r.correct, gained, ms: r.ms, speedRank};
+        if(!st.practice) upd['players/' + r.pid + '/score'] = (players[r.pid].score || 0) + gained;
       }
       upd['state/phase'] = 'reveal';
       await gref(code).update(upd);
@@ -594,6 +608,7 @@ function playerGame(){
 }
 function pHead(){ return topbar(`<span class="chip">${esc(P.name)}</span><span class="chip code">${esc(P.code)}</span>`); }
 async function loadQuestion(i){
+  if(i === 'practice') return PRACTICE;
   if(P.cache[i]) return P.cache[i];
   const q = (await gref(P.code, 'questions/' + i).once('value')).val();
   if(q) P.cache[i] = q; return q;
@@ -610,13 +625,14 @@ async function playerRender(){
     playerRenderRank(); loadQuestion(0).catch(()=>{});
   }
   else if(st.phase === 'question'){
-    app.innerHTML = `<div class="app">${pHead()}<p class="muted">Frage ${st.q+1} von ${st.total} · lädt …</p></div>`;
-    let q; try{ q = await loadQuestion(st.q); }catch(e){}
+    const key = qKey(st);
+    app.innerHTML = `<div class="app">${pHead()}<p class="muted">${qLabel(st)} · lädt …</p></div>`;
+    let q; try{ q = await loadQuestion(st.practice ? 'practice' : st.q); }catch(e){}
     if(!q || P.state !== st) return;
-    const mine = (await gref(P.code, 'answers/' + st.q + '/' + P.pid).once('value')).val();
+    const mine = (await gref(P.code, 'answers/' + key + '/' + P.pid).once('value')).val();
     if(P.state !== st) return;
     app.innerHTML = `<div class="app">${pHead()}
-      <div class="row between"><span class="muted">Frage ${st.q+1} von ${st.total}</span><span class="count" id="tleft"></span></div>
+      <div class="row between"><span class="muted">${qLabel(st)}</span><span class="count" id="tleft"></span></div>
       ${st.seconds ? `<div class="timer"><i id="tbar" style="width:100%"></i></div>` : ''}
       <img class="photo" src="${q.img}" alt="" style="max-height:48vh">
       ${q.text ? `<h2 class="center">${esc(q.text)}</h2>` : ''}
@@ -629,27 +645,28 @@ async function playerRender(){
     app.querySelectorAll('.answer').forEach(b => b.onclick = async () => {
       app.querySelectorAll('.answer').forEach(x => { x.disabled = true; });
       b.classList.add('picked');
-      try{ await gref(P.code, 'answers/' + st.q + '/' + P.pid).set({choice: b.dataset.c, at: firebase.database.ServerValue.TIMESTAMP}); $('#hint').textContent = 'Antwort abgegeben. Warte auf die Auflösung …'; }
+      try{ await gref(P.code, 'answers/' + key + '/' + P.pid).set({choice: b.dataset.c, at: firebase.database.ServerValue.TIMESTAMP}); $('#hint').textContent = 'Antwort abgegeben. Warte auf die Auflösung …'; }
       catch(e){ $('#hint').textContent = 'Senden fehlgeschlagen: ' + e.message; app.querySelectorAll('.answer').forEach(x => { x.disabled = false; }); b.classList.remove('picked'); }
     });
     if(st.seconds){
       const tick = () => { const left = Math.max(0, st.seconds*1000 - (now() - st.startedAt)); const b = $('#tbar'), t = $('#tleft'); if(b) b.style.width = (100*left/(st.seconds*1000)) + '%'; if(t) t.textContent = Math.ceil(left/1000) + ' s'; if(left<=0){ clearInterval(P.timerId); app.querySelectorAll('.answer').forEach(x => { x.disabled = true; }); } };
       tick(); P.timerId = setInterval(tick, 500);
     }
-    loadQuestion(st.q+1).catch(()=>{});
+    loadQuestion(st.practice ? 0 : st.q+1).catch(()=>{});
   }
   else if(st.phase === 'reveal'){
-    const q = P.cache[st.q] || await loadQuestion(st.q).catch(()=>null);
-    const res = (await gref(P.code, 'results/' + st.q + '/' + P.pid).once('value')).val();
+    const q = await loadQuestion(st.practice ? 'practice' : st.q).catch(()=>null);
+    const res = (await gref(P.code, 'results/' + qKey(st) + '/' + P.pid).once('value')).val();
     if(P.state !== st) return;
     const v = !res ? ['bad','Keine Antwort'] : res.correct ? ['ok', res.speedRank === 1 ? 'Richtig und am schnellsten!' : 'Richtig!'] : ['bad','Leider falsch'];
     const speed = res && res.correct ? `<p class="muted">${(res.ms/1000).toFixed(1)} s · ${res.speedRank}. schnellste richtige Antwort · 100 Punkte + ${res.gained-100} Tempo-Bonus</p>` : '';
     app.innerHTML = `<div class="app">${pHead()}
-      <p class="muted">Frage ${st.q+1} von ${st.total}</p>
+      <p class="muted">${qLabel(st)}</p>
       <div class="card stack center">
         <div class="verdict ${v[0]}">${v[1]}</div>
         <div class="points">${res && res.gained ? '+' + res.gained : '+0'}</div>
         ${speed}
+        ${st.practice ? '<p class="muted">Das war nur zur Übung. Diese Punkte zählen nicht.</p>' : ''}
         ${q ? `<p>Richtig war <strong>${esc(q.correct)}: ${esc(q.correct==='A'?q.a:q.b)}</strong></p>` : ''}
       </div>
       <div class="card center" id="rk"></div>
