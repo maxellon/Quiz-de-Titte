@@ -181,6 +181,16 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 .rank:first-of-type{border-top:0}
 .rank .pos{font-family:var(--display);font-weight:800;font-size:20px;color:var(--muted);font-variant-numeric:tabular-nums}
 .rank.top .pos{color:var(--pine)}
+/* Wie lange noch */
+.eta{background:var(--pine);color:#fff;border-radius:14px;padding:18px 16px;text-align:center;display:flex;flex-direction:column;gap:6px}
+.eta .km{font-family:var(--display);font-weight:800;font-size:clamp(44px,14vw,72px);line-height:1;font-variant-numeric:tabular-nums}
+.eta .km small{font-size:.4em;font-weight:700;opacity:.8}
+.eta .sub{font-size:15px;opacity:.9}
+.eta .arr{font-family:var(--display);font-weight:800;font-size:22px;color:var(--amber)}
+.prog{height:14px;border-radius:7px;background:rgba(255,255,255,.2);overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;background:var(--amber);transition:width 1s}
+.eta .lab{display:flex;justify-content:space-between;font-size:12px;opacity:.8}
+.yn{font-family:var(--display);font-weight:800;font-size:clamp(28px,8vw,40px);text-align:center;padding:12px}
 /* Wertung */
 .score{display:grid;grid-template-columns:1fr repeat(4,56px) 54px;gap:4px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
 .score input{padding:4px;text-align:center;font-size:14px}
@@ -204,6 +214,7 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 <nav class="tabs"><div class="in" id="tabs">
   <button class="tab on" data-tab="plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Plan</button>
   <button class="tab" data-tab="map"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Karte</button>
+  <button class="tab" data-tab="eta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Wie lange</button>
   <button class="tab" data-tab="tour"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 12v4M8 20h8M9 16h6"/></svg>Bierpong</button>
   <button class="tab" data-tab="lag"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L20 20M6 6l6 6M4.5 10.5l5-5"/></svg>LAG</button>
   <button class="tab" data-tab="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"/></svg>Quiz</button>
@@ -337,7 +348,7 @@ function render(){
   if(typing()){ pendingRender = true; return; }
   pendingRender = false;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ({plan: renderPlan, map: renderMap, tour: renderTour, lag: renderTour, quiz: renderQuiz, fun: renderFun, orga: renderOrga, info: renderInfo})[tab]();
+  ({plan: renderPlan, map: renderMap, eta: renderEta, tour: renderTour, lag: renderTour, quiz: renderQuiz, fun: renderFun, orga: renderOrga, info: renderInfo})[tab]();
 }
 main.addEventListener('focusout', () => setTimeout(() => { if(pendingRender && !typing()) render(); }, 80));
 function save(path, value){ return R(path).set(value).catch(e => toast(/PERMISSION_DENIED/i.test(e.message) ? 'Speichern abgelehnt: In Firebase fehlen die Regeln für „jga“.' : 'Speichern fehlgeschlagen: ' + e.message, true)); }
@@ -570,6 +581,59 @@ function renderQuiz(){
   wireEdit();
   if($('#qAdd')) $('#qAdd').onclick = () => { const t = $('#qTitle').value.trim(); if(!t) return; R('quiz/list/' + uid()).set({title: t, note: $('#qNote').value.trim(), order: Date.now()}); };
   main.querySelectorAll('[data-qdel]').forEach(b => b.onclick = () => R('quiz/list/' + b.dataset.qdel).remove());
+}
+
+/* ---------- Wie lange noch: GPS bis zur Hütte ---------- */
+const START = {lat: 48.7392, lng: 9.3272, name: 'Oberesslingen'};
+const DEFAULT_DEST = {lat: 47.2692, lng: 11.4041, name: 'Innsbruck'};
+const E = { pos: null, watch: null, err: null, route: null, routeAt: 0, total: null, busy: false };
+const dest = () => { const d = D.settings.dest; if(d && d.lat) return d; const h = Object.values(D.schedule).find(it => /hütte/i.test(it.title||'') && it.lat); return h ? {lat: h.lat, lng: h.lng, name: h.place || 'Hütte'} : DEFAULT_DEST; };
+const hav = (a, b) => { const R = 6371, dl = (b.lat-a.lat)*Math.PI/180, dg = (b.lng-a.lng)*Math.PI/180, x = Math.sin(dl/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dg/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+async function osrm(a, b){ const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`); const j = await r.json(); if(!j.routes || !j.routes.length) throw new Error('keine Route'); return {km: j.routes[0].distance/1000, min: j.routes[0].duration/60}; }
+function startGps(){
+  if(E.watch != null || !navigator.geolocation) return;
+  E.watch = navigator.geolocation.watchPosition(p => { E.pos = {lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, at: Date.now()}; E.err = null; updateRoute(); if(tab === 'eta') render(); },
+    e => { E.err = e.code === 1 ? 'Standort nicht freigegeben. In den Browser-Einstellungen erlauben.' : 'Kein GPS-Signal.'; if(tab === 'eta') render(); }, {enableHighAccuracy: true, maximumAge: 15000, timeout: 20000});
+}
+async function updateRoute(){
+  if(!E.pos || E.busy || Date.now() - E.routeAt < 60000) return;
+  E.busy = true; const d = dest();
+  try{ if(!E.total || E.total.dest !== d.lat+','+d.lng){ const t = await osrm(START, d); E.total = {...t, dest: d.lat+','+d.lng}; } E.route = await osrm(E.pos, d); E.routeAt = Date.now(); }
+  catch(e){ E.route = null; E.routeAt = Date.now(); }
+  E.busy = false; if(tab === 'eta') render();
+}
+function renderEta(){
+  startGps();
+  const d = dest();
+  const air = E.pos ? hav(E.pos, d) : null;
+  const km = E.route ? E.route.km : air, min = E.route ? E.route.min : (air != null ? air / 80 * 60 : null);
+  const totalKm = E.total ? E.total.km : hav(START, d) * 1.25;
+  const frac = km != null ? Math.max(0, Math.min(1, 1 - km / totalKm)) : 0;
+  const arrive = min != null ? new Date(Date.now() + min*60000).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}) : null;
+  const fmt = m => m < 60 ? `${Math.round(m)} Min.` : `${Math.floor(m/60)} h ${Math.round(m%60)} Min.`;
+  const there = km != null && km < 1;
+  main.innerHTML = `${editBtn('Ziel ändern')}
+    <div class="eta">
+      <span class="eyebrow" style="color:rgba(255,255,255,.8)">Noch bis ${esc(d.name)}</span>
+      ${km != null ? `<div class="km">${km < 10 ? km.toFixed(1) : Math.round(km)}<small> km</small></div>
+        <div class="sub">${E.route ? 'Fahrstrecke' : 'Luftlinie'} · ca. ${fmt(min)}</div>
+        <div class="arr">Ankunft ca. ${arrive} Uhr</div>
+        <div class="prog"><i style="width:${Math.round(frac*100)}%"></i></div><div class="lab"><span>${esc(START.name)}</span><span>${Math.round(frac*100)} %</span><span>${esc(d.name)}</span></div>`
+      : `<div class="sub" style="padding:14px 0">${E.err ? esc(E.err) : 'Warte auf GPS …'}</div>`}
+    </div>
+    ${km != null ? `<div class="card yn">Sind wir schon da? ${there ? '<span style="color:var(--ok)">Ja!</span>' : '<span style="color:var(--bad)">Nein.</span>'}</div>` : ''}
+    <p class="muted" style="font-size:13px">Standort nur auf diesem Handy, wird nicht gespeichert. Strecke über OSRM/OpenStreetMap, alle 60 Sekunden neu.${E.pos ? ` Genauigkeit ±${Math.round(E.pos.acc)} m.` : ''}</p>
+    ${edit ? `<div class="card stack"><h3>Ziel</h3><p class="muted" style="font-size:14px">Aktuell: ${esc(d.name)} (${d.lat.toFixed(4)}, ${d.lng.toFixed(4)})</p>
+      <div class="row"><input type="text" id="destAddr" class="grow" placeholder="Adresse der Hütte" value="${esc(D.settings.dest ? D.settings.dest.name : '')}"><button class="btn primary" id="destSet">Ziel setzen</button></div>
+      <p class="muted" style="font-size:13px">Die Adresse gilt für alle. Wird auch im Plan beim Programmpunkt „Ankunft in der Hütte“ als Ort gesetzt, ist sie hier automatisch das Ziel.</p></div>` : ''}`;
+  wireEdit();
+  if($('#destSet')) $('#destSet').onclick = async () => {
+    const q = $('#destAddr').value.trim(); if(!q) return;
+    $('#destSet').disabled = true;
+    try{ const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q), {headers:{'Accept-Language':'de'}}); const j = await r.json(); if(!j.length) throw new Error('Adresse nicht gefunden.');
+      await R('settings/dest').set({lat: +j[0].lat, lng: +j[0].lon, name: q}); E.total = null; E.routeAt = 0; edit = false; toast('Ziel gesetzt: ' + j[0].display_name.split(',').slice(0,2).join(',')); updateRoute(); }
+    catch(e){ toast(e.message, true); $('#destSet').disabled = false; }
+  };
 }
 
 /* ---------- Spaß: Wertung, Fotowand, Playlist, Umfragen ---------- */
