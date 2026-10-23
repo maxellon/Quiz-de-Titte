@@ -379,6 +379,7 @@ const typing = () => { const a = document.activeElement; return a && main.contai
 function render(){
   if(typing()){ pendingRender = true; return; }
   pendingRender = false;
+  syncEta();
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   ({plan: renderPlan, map: renderMap, eta: renderEta, ibk: renderIbk, tour: renderTour, lag: renderTour, quiz: renderQuiz, fun: renderFun, orga: renderOrga, info: renderInfo})[tab]();
 }
@@ -536,7 +537,7 @@ function wireTrain(){
   if($('#busSave')) $('#busSave').onclick = () => R('settings/train/bus').set($('#busDeps').value).then(() => toast('Busfahrplan gespeichert'));
   if($('#busReset')) $('#busReset').onclick = () => R('settings/train/bus').remove();
 }
-setInterval(() => { if((tab === 'plan' || tab === 'ibk') && !typing()) render(); }, 60000);
+setInterval(() => { syncEta(); if((tab === 'plan' || tab === 'ibk') && !typing()) render(); }, 60000);
 
 /* ---------- Innsbruck: Überblick, Hinweg, Rückweg ---------- */
 function renderIbk(){
@@ -712,10 +713,15 @@ function renderQuiz(){
 }
 
 /* ---------- Wie lange noch: GPS bis zur Hütte ---------- */
-const START = {lat: 48.7392, lng: 9.3272, name: 'Oberesslingen'};
+const OBERESSLINGEN = {lat: 48.7392, lng: 9.3272, name: 'Oberesslingen'};
+/* Phasen: bis Do 17:00 Hinfahrt (Ziel Hütte), dann ausgeblendet, ab Sa 06:00 Rückfahrt (Ziel Oberesslingen) */
+function etaMode(){ const n = Date.now(); if(n < new Date('2027-05-06T17:00:00+02:00').getTime()) return 'hin'; if(n < new Date('2027-05-08T06:00:00+02:00').getTime()) return 'off'; return 'rueck'; }
+let START = OBERESSLINGEN;
 const DEFAULT_DEST = {lat: 47.1311, lng: 11.5403, name: 'Peerhof Navis'};
 const E = { pos: null, watch: null, err: null, route: null, routeAt: 0, total: null, busy: false };
-const dest = () => { const d = D.settings.dest; if(d && d.lat) return d; const h = Object.values(D.schedule).find(it => /hütte/i.test(it.title||'') && it.lat); return h ? {lat: h.lat, lng: h.lng, name: h.place || 'Hütte'} : DEFAULT_DEST; };
+const hutDest = () => { const d = D.settings.dest; if(d && d.lat) return d; const h = Object.values(D.schedule).find(it => /hütte/i.test(it.title||'') && it.lat); return h ? {lat: h.lat, lng: h.lng, name: h.place || 'Hütte'} : DEFAULT_DEST; };
+const dest = () => etaMode() === 'rueck' ? OBERESSLINGEN : hutDest();
+function syncEta(){ const mode = etaMode(); START = mode === 'rueck' ? {...hutDest(), name: 'Hütte'} : OBERESSLINGEN; const b = document.querySelector('.tab[data-tab="eta"]'); if(b) b.hidden = mode === 'off'; if(mode === 'off' && tab === 'eta'){ tab = 'plan'; ls.set('jga-tab', tab); } }
 const hav = (a, b) => { const R = 6371, dl = (b.lat-a.lat)*Math.PI/180, dg = (b.lng-a.lng)*Math.PI/180, x = Math.sin(dl/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dg/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
 async function osrm(a, b){ const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`); const j = await r.json(); if(!j.routes || !j.routes.length) throw new Error('keine Route'); return {km: j.routes[0].distance/1000, min: j.routes[0].duration/60}; }
 function startGps(){
@@ -726,7 +732,7 @@ function startGps(){
 async function updateRoute(){
   if(!E.pos || E.busy || Date.now() - E.routeAt < 60000) return;
   E.busy = true; const d = dest();
-  try{ if(!E.total || E.total.dest !== d.lat+','+d.lng){ const t = await osrm(START, d); E.total = {...t, dest: d.lat+','+d.lng}; } E.route = await osrm(E.pos, d); E.routeAt = Date.now(); }
+  try{ const key = START.lat+','+START.lng+'>'+d.lat+','+d.lng; if(!E.total || E.total.dest !== key){ const t = await osrm(START, d); E.total = {...t, dest: key}; } E.route = await osrm(E.pos, d); E.routeAt = Date.now(); }
   catch(e){ E.route = null; E.routeAt = Date.now(); }
   E.busy = false; if(tab === 'eta') render();
 }
@@ -740,9 +746,9 @@ function renderEta(){
   const arrive = min != null ? new Date(Date.now() + min*60000).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}) : null;
   const fmt = m => m < 60 ? `${Math.round(m)} Min.` : `${Math.floor(m/60)} h ${Math.round(m%60)} Min.`;
   const there = km != null && km < 1;
-  main.innerHTML = `${editBtn('Ziel ändern')}
+  main.innerHTML = `${etaMode() === 'rueck' ? '' : editBtn('Ziel ändern')}
     <div class="eta">
-      <span class="eyebrow" style="color:rgba(255,255,255,.8)">Noch bis ${esc(d.name)}</span>
+      <span class="eyebrow" style="color:rgba(255,255,255,.8)">${etaMode() === 'rueck' ? 'Heimfahrt · noch bis' : 'Noch bis'} ${esc(d.name)}</span>
       ${km != null ? `<div class="km">${km < 10 ? km.toFixed(1) : Math.round(km)}<small> km</small></div>
         <div class="sub">${E.route ? 'Fahrstrecke' : 'Luftlinie'} · ca. ${fmt(min)}</div>
         <div class="arr">Ankunft ca. ${arrive} Uhr</div>
