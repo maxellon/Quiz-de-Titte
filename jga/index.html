@@ -199,6 +199,22 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 .taxi{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;font-size:15px}
 .taxi a{color:var(--pine);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;text-decoration:none}
 .taxi small{color:var(--muted);display:block;font-size:12px}
+.feed{display:flex;flex-direction:column;gap:14px}
+.ph{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.ph img{width:100%;max-height:70vh;object-fit:contain;background:#000}
+.ph .meta{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px}
+.ph .by{font-weight:700}.ph .by small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.vote{display:flex;gap:8px}
+.vote button{appearance:none;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 14px;font-size:18px;cursor:pointer;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.vote button span{font-size:15px;font-weight:700}
+.vote button.on.up{background:color-mix(in srgb,var(--ok) 20%,var(--surface));border-color:var(--ok)}
+.vote button.on.down{background:color-mix(in srgb,var(--bad) 18%,var(--surface));border-color:var(--bad)}
+.top10{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+.top10 figure{margin:0;position:relative;border-radius:10px;overflow:hidden;background:var(--soft);cursor:pointer}
+.top10 img{width:100%;aspect-ratio:1;object-fit:cover}
+.top10 .rk{position:absolute;top:4px;left:4px;background:var(--amber);color:var(--amber-ink);font-family:var(--display);font-weight:800;font-size:13px;padding:1px 7px;border-radius:999px}
+.top10 figcaption{font-size:11px;padding:4px 6px;line-height:1.2}
+.top10 figcaption strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Wertung */
 .score{display:grid;grid-template-columns:1fr repeat(4,56px) 54px;gap:4px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
 .score input{padding:4px;text-align:center;font-size:14px}
@@ -227,6 +243,7 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
   <button class="tab" data-tab="ibk"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 17l-2 4M16 17l2 4M8 7h.01M16 7h.01"/></svg>Innsbruck</button>
   <button class="tab" data-tab="lag"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L20 20M6 6l6 6M4.5 10.5l5-5"/></svg>LAG</button>
   <button class="tab" data-tab="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"/></svg>Quiz</button>
+  <button class="tab" data-tab="photos"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Fotos</button>
   <button class="tab" data-tab="fun"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>Spaß</button>
   <button class="tab" data-tab="orga"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>Orga</button>
   <button class="tab" data-tab="map"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Karte</button>
@@ -346,8 +363,8 @@ function countdown(){
 countdown(); setInterval(countdown, 60000);
 
 /* ---------- Tabs ---------- */
-$('#tabs').onclick = e => { const b = e.target.closest('.tab'); if(!b) return; tab = b.dataset.tab; ls.set('jga-tab', tab); edit = false; openGame = null; editItem = null; if(tab === 'fun') subWall(); render(); b.scrollIntoView({inline:'center', block:'nearest'}); };
-if(tab === 'fun') subWall();
+$('#tabs').onclick = e => { const b = e.target.closest('.tab'); if(!b) return; tab = b.dataset.tab; ls.set('jga-tab', tab); edit = false; openGame = null; editItem = null; if(tab === 'fun' || tab === 'photos') subWall(); render(); b.scrollIntoView({inline:'center', block:'nearest'}); };
+if(tab === 'fun' || tab === 'photos') subWall();
 /* Ich bin … */
 const peopleList = () => Object.entries(D.people).map(([id,p]) => ({id, ...p})).sort((a,b) => (a.name||'').localeCompare(b.name||'', 'de'));
 function renderMe(){ $('#meBtn').textContent = ME ? `Ich: ${ME}` : 'Ich bin …'; }
@@ -381,7 +398,7 @@ function render(){
   pendingRender = false;
   syncEta();
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ({plan: renderPlan, map: renderMap, eta: renderEta, ibk: renderIbk, tour: renderTour, lag: renderTour, quiz: renderQuiz, fun: renderFun, orga: renderOrga, info: renderInfo})[tab]();
+  ({plan: renderPlan, map: renderMap, eta: renderEta, ibk: renderIbk, tour: renderTour, lag: renderTour, quiz: renderQuiz, fun: renderFun, photos: renderPhotos, orga: renderOrga, info: renderInfo})[tab]();
 }
 main.addEventListener('focusout', () => setTimeout(() => { if(pendingRender && !typing()) render(); }, 80));
 function save(path, value){ return R(path).set(value).catch(e => toast(/PERMISSION_DENIED/i.test(e.message) ? 'Speichern abgelehnt: In Firebase fehlen die Regeln für „jga“.' : 'Speichern fehlgeschlagen: ' + e.message, true)); }
@@ -779,14 +796,43 @@ function renderEta(){
   };
 }
 
-/* ---------- Spaß: Wertung, Fotowand, Playlist, Umfragen ---------- */
+/* ---------- Fotos: Feed mit Daumen hoch/runter, Top 10 des Tages ---------- */
+const dayKey = ts => { const d = new Date(ts || 0); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const dayLabel = k => { const d = new Date(k + 'T12:00:00'); return d.toLocaleDateString('de-DE', {weekday:'long', day:'numeric', month:'long'}); };
+function renderPhotos(){
+  const wall = Object.entries(D.wall).map(([id,w]) => { const v = w.votes || {}; const up = Object.values(v).filter(x => x === 1).length, down = Object.values(v).filter(x => x === -1).length; return {id, ...w, up, down, score: up - down, mine: v[DEVICE] || 0}; }).sort((a,b) => (b.at||0)-(a.at||0));
+  const today = dayKey(Date.now());
+  const days = [...new Set(wall.map(w => dayKey(w.at)))].sort().reverse();
+  const topDay = days.includes(today) ? today : days[0];
+  const top = topDay ? wall.filter(w => dayKey(w.at) === topDay).sort((a,b) => b.score - a.score || b.up - a.up || (a.at||0)-(b.at||0)).slice(0,10) : [];
+  main.innerHTML = `${editBtn()}
+    <div class="card stack">
+      <div class="sub-h"><h2>Foto hochladen</h2><span class="muted" style="font-size:13px">${ME ? 'als ' + esc(ME) : 'Name oben bei „Ich bin …“ setzen'}</span></div>
+      <div class="row"><button class="btn primary big" id="phAdd" ${ME ? '' : 'disabled'}>Aus der Mediathek wählen</button><input type="file" id="phFile" accept="image/*" multiple hidden></div>
+      <p class="muted" style="font-size:13px">Jeder bewertet anonym mit Daumen hoch oder runter, eine Stimme pro Handy und Bild.</p>
+    </div>
+    ${top.length ? `<div class="card stack"><div class="sub-h"><h2>Top 10 · ${esc(dayLabel(topDay))}</h2><span class="muted" style="font-size:13px">${esc(topDay === today ? 'live' : 'letzter Tag mit Fotos')}</span></div>
+      <div class="top10">${top.map((w,i) => `<figure data-go="${w.id}"><span class="rk">${i+1}</span><img src="${w.img}" alt="" loading="lazy"><figcaption><strong>${esc(w.by || 'Unbekannt')}</strong>👍 ${w.up} · 👎 ${w.down}</figcaption></figure>`).join('')}</div></div>` : ''}
+    <div class="feed" id="feed">${wallSub ? (wall.map(w => `<div class="ph" id="ph-${w.id}">
+        <img src="${w.img}" alt="" loading="lazy">
+        <div class="meta"><div class="by">${esc(w.by || 'Unbekannt')}<small>${w.at ? new Date(w.at).toLocaleString('de-DE', {weekday:'short', hour:'2-digit', minute:'2-digit'}) : ''}${edit ? ` · <button class="btn small danger" data-pdel="${w.id}" style="padding:1px 6px">löschen</button>` : ''}</small></div>
+          <div class="vote"><button class="up ${w.mine===1?'on':''}" data-vote="${w.id}" data-v="1" title="Daumen hoch">👍<span>${w.up}</span></button><button class="down ${w.mine===-1?'on':''}" data-vote="${w.id}" data-v="-1" title="Daumen runter">👎<span>${w.down}</span></button></div></div>
+      </div>`).join('') || '<p class="muted center">Noch keine Fotos. Mach den Anfang.</p>') : '<p class="muted">Lädt …</p>'}</div>`;
+  wireEdit();
+  $('#phAdd').onclick = () => $('#phFile').click();
+  $('#phFile').onchange = async e => { const files = Array.from(e.target.files); if(!files.length) return; toast(`${files.length} Foto${files.length===1?'':'s'} werden hochgeladen …`); for(const f of files){ try{ const img = await compressImage(f, 1200); await R('wall/' + uid()).set({img, by: ME, at: firebase.database.ServerValue.TIMESTAMP}); }catch(err){ toast(err.message, true); } } toast('Fotos sind drin'); };
+  main.querySelectorAll('[data-vote]').forEach(b => b.onclick = () => { const w = D.wall[b.dataset.vote]; const cur = (w && w.votes && w.votes[DEVICE]) || 0; const v = +b.dataset.v; R('wall/' + b.dataset.vote + '/votes/' + DEVICE).set(cur === v ? null : v).catch(e => toast(e.message, true)); });
+  main.querySelectorAll('[data-go]').forEach(f => f.onclick = () => { const el = $('#ph-' + f.dataset.go); if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); });
+  main.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('wall/' + b.dataset.pdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
+}
+
+/* ---------- Spaß: Wertung, Playlist, Umfragen ---------- */
 const CATS = [['quiz','Quiz'],['pong','Bierpong'],['tennis','LAG'],['misc','Sonst.']];
 const who = () => ME || 'Jemand';
 function renderFun(){
   const people = peopleList();
   const total = p => CATS.reduce((a,[k]) => a + (+((D.scores[p.id]||{})[k]) || 0), 0);
   const ranked = people.map(p => ({...p, total: total(p)})).sort((a,b) => b.total - a.total || a.name.localeCompare(b.name,'de'));
-  const wall = Object.entries(D.wall).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
   const songs = Object.entries(D.songs).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
   const polls = Object.entries(D.polls).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
   main.innerHTML = `${editBtn()}
@@ -796,9 +842,6 @@ function renderFun(){
         <p class="muted" style="font-size:13px">Punkte je Disziplin eintragen, z. B. 3/2/1 für die ersten drei. Wird beim Tippen gespeichert.</p>`
       : ranked.map((p,i) => `<div class="rank ${i<3?'top':''}"><span class="pos">${i+1}.</span><span>${esc(p.name)}<div class="muted" style="font-size:12px">${CATS.filter(([k]) => (D.scores[p.id]||{})[k]).map(([k,l]) => `${l} ${(D.scores[p.id]||{})[k]}`).join(' · ')}</div></span><span class="score-pts" style="font-family:var(--display);font-weight:800;font-size:18px">${p.total}</span></div>`).join(''))
       : '<p class="muted">Sobald Teilnehmer eingetragen sind (Orga → Teilnehmer), erscheint hier die Rangliste.</p>'}
-    </section>
-    <section class="card stack"><div class="sub-h"><h2>Fotowand</h2><div><button class="btn small primary" id="wallAdd">+ Foto</button><input type="file" id="wallFile" accept="image/*" multiple hidden></div></div>
-      ${wallSub ? (wall.length ? `<div class="wall">${wall.map(w => `<figure><img src="${w.img}" alt="" loading="lazy"><figcaption>${esc(w.by||'')}${w.at ? ' · ' + new Date(w.at).toLocaleString('de-DE',{weekday:'short',hour:'2-digit',minute:'2-digit'}) : ''}${edit ? ` <button class="btn small danger" data-wdel="${w.id}" style="padding:2px 6px">✕</button>` : ''}</figcaption></figure>`).join('')}</div>` : '<p class="muted">Noch keine Fotos. Alles, was hier landet, sehen alle sofort.</p>') : '<p class="muted">Lädt …</p>'}
     </section>
     <section class="card stack"><div class="sub-h"><h2>Playlist-Wünsche</h2><span class="muted" style="font-size:13px">für Bus und Hütte</span></div>
       ${songs.map(x => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div class="grow"><strong>${esc(x.title)}</strong>${x.artist ? ` <span class="muted">· ${esc(x.artist)}</span>` : ''}<div class="muted" style="font-size:12px">${esc(x.by||'')}</div></div>${edit ? `<button class="btn small danger" data-sdel="${x.id}">✕</button>` : ''}</div>`).join('') || '<p class="muted">Noch keine Wünsche.</p>'}
@@ -813,9 +856,6 @@ function renderFun(){
     </section>`;
   wireEdit();
   main.querySelectorAll('[data-score]').forEach(inp => inp.oninput = () => { const p = 'scores/' + inp.dataset.score + '/' + inp.dataset.cat; saveSoon(p, p, inp.value === '' ? null : +inp.value); });
-  $('#wallAdd').onclick = () => $('#wallFile').click();
-  $('#wallFile').onchange = async e => { const files = Array.from(e.target.files); if(!files.length) return; toast(`${files.length} Foto${files.length===1?'':'s'} werden hochgeladen …`); for(const f of files){ try{ const img = await compressImage(f, 1000); await R('wall/' + uid()).set({img, by: who(), at: firebase.database.ServerValue.TIMESTAMP}); }catch(err){ toast(err.message, true); } } toast('Fotos sind drin'); };
-  main.querySelectorAll('[data-wdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('wall/' + b.dataset.wdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
   $('#songAdd').onclick = () => { const t = $('#songT').value.trim(); if(!t) return; R('songs/' + uid()).set({title: t, artist: $('#songA').value.trim(), by: who(), at: firebase.database.ServerValue.TIMESTAMP}); };
   main.querySelectorAll('[data-sdel]').forEach(b => b.onclick = () => R('songs/' + b.dataset.sdel).remove());
   $('#pollAdd').onclick = () => { const q = $('#pollQ').value.trim(), o = $('#pollO').value.split(',').map(x => x.trim()).filter(Boolean); if(!q || o.length < 2) return toast('Frage und mindestens zwei Antworten eintragen.', true); R('polls/' + uid()).set({q, options: o, votes: {}, at: firebase.database.ServerValue.TIMESTAMP}); };
