@@ -402,10 +402,14 @@ function renderPlan(){
   } else if(now < new Date('2027-05-06T00:00:00+02:00')) nextItem = items[0] || null;
   const cdText = it => { if(!it) return ''; const dIdx = DAYS.findIndex(d=>d[0]===it.day); const t = new Date(`2027-05-0${6+dIdx}T${it.time||'00:00'}:00+02:00`); const m = Math.round((t - now)/60000); if(m < 0) return ''; if(m < 60) return `in ${m} Min.`; if(m < 48*60) return `in ${Math.floor(m/60)} h ${m%60} Min.`; return `in ${Math.round(m/1440)} Tagen`; };
   let html = editBtn();
-  if(curItem || nextItem) html += `<div class="nowcard">
-      <div><span class="eyebrow">${curItem ? 'Jetzt' : 'Als Nächstes'}</span><div class="big">${esc((curItem || nextItem).title)}</div><div style="font-size:14px;opacity:.85">${esc((curItem || nextItem).place || '')}</div></div>
-      <div class="cd">${curItem ? esc(curItem.time) : cdText(nextItem)}</div>
-      ${curItem && nextItem ? `<div class="next">Danach ${esc(nextItem.time)} · ${esc(nextItem.title)} <strong>${cdText(nextItem)}</strong></div>` : ''}
+  const before = now < new Date('2027-05-06T00:00:00+02:00'), after = now > new Date('2027-05-08T23:59:00+02:00');
+  const days = Math.ceil((new Date('2027-05-06T08:30:00+02:00') - now)/86400000);
+  html += `<div class="nowcard">
+      <div><span class="eyebrow">Aktuell · ${esc(hhmm)} Uhr</span>
+        <div class="big">${after ? 'JGA vorbei. Danke, Jungs!' : curItem ? esc(curItem.title) : before ? `Noch ${days} Tag${days===1?'':'e'} bis zum JGA` : nextItem ? 'Freie Zeit' : 'Nichts mehr geplant'}</div>
+        <div style="font-size:14px;opacity:.85">${after ? '' : curItem ? esc(curItem.place || '') : before ? 'Do 6. Mai, 8:30 Uhr, P+R Oberesslingen' : ''}</div></div>
+      <div class="cd">${curItem ? esc(curItem.time) : (!after && nextItem ? cdText(nextItem) : '')}</div>
+      ${!after && nextItem ? `<div class="next">${curItem ? 'Danach' : 'Als Nächstes'} ${esc(nextItem.time)} · ${esc(nextItem.title)}${nextItem.place ? ' · ' + esc(nextItem.place) : ''} <strong>${curItem ? cdText(nextItem) : ''}</strong></div>` : ''}
     </div>`;
   html += `<div id="wx"></div>`;
   loadWeather();
