@@ -205,6 +205,7 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
   <button class="tab on" data-tab="plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Plan</button>
   <button class="tab" data-tab="map"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Karte</button>
   <button class="tab" data-tab="tour"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 12v4M8 20h8M9 16h6"/></svg>Bierpong</button>
+  <button class="tab" data-tab="lag"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L20 20M6 6l6 6M4.5 10.5l5-5"/></svg>LAG</button>
   <button class="tab" data-tab="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"/></svg>Quiz</button>
   <button class="tab" data-tab="fun"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>Spaß</button>
   <button class="tab" data-tab="orga"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>Orga</button>
@@ -250,7 +251,7 @@ function compressImage(file, max){
 
 /* ---------- Daten (live) ---------- */
 const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {}, draw: null,
-  people: {}, expenses: {}, scores: {}, challenges: {}, wall: {}, songs: {}, polls: {}, tennis: null };
+  people: {}, expenses: {}, scores: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, challenges: {}, wall: {}, songs: {}, polls: {} };
 const DEVICE = (() => { let d = ls.get('jga-device', null); if(!d){ d = uid(); ls.set('jga-device', d); } return d; })();
 let ME = ls.get('jga-me', '');
 let tab = ls.get('jga-tab', 'plan'), edit = false, openGame = null, editItem = null;
@@ -295,7 +296,9 @@ R('scores').on('value', s => { D.scores = s.val() || {}; render(); }, onErr);
 R('challenges').on('value', s => { D.challenges = s.val() || {}; if(!s.exists()){ const u = {}; SEED_CHAL.forEach((t,i) => { u[uid()] = {text:t, done:false, order:i}; }); R('challenges').set(u); } render(); }, onErr);
 R('songs').on('value', s => { D.songs = s.val() || {}; render(); }, onErr);
 R('polls').on('value', s => { D.polls = s.val() || {}; render(); }, onErr);
-R('tennis').on('value', s => { D.tennis = s.val() || null; render(); }, onErr);
+R('tennisTeams').on('value', s => { D.tennisTeams = s.val() || {}; render(); }, onErr);
+R('tennisResults').on('value', s => { D.tennisResults = s.val() || {}; render(); }, onErr);
+R('tennisDraw').on('value', s => { D.tennisDraw = s.val() || null; openGame = null; render(); }, onErr);
 let wallSub = false;
 function subWall(){ if(wallSub) return; wallSub = true; R('wall').on('value', s => { D.wall = s.val() || {}; render(); }, onErr); }
 const SEED_CHAL = ['Ferdi hält eine Rede auf seine Zukünftige (mind. 2 Minuten)', 'Ein Gruppenfoto mit einem echten Tiroler in Tracht', 'Ferdi gewinnt ein Bierpong-Spiel gegen ein Team seiner Wahl', 'Ein Fremder singt mit Ferdi ein Lied in der Kneipe', 'Ferdi bestellt in der Kneipe auf Tirolerisch'];
@@ -335,7 +338,7 @@ function render(){
   if(typing()){ pendingRender = true; return; }
   pendingRender = false;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ({plan: renderPlan, map: renderMap, tour: renderTour, quiz: renderQuiz, fun: renderFun, orga: renderOrga, info: renderInfo})[tab]();
+  ({plan: renderPlan, map: renderMap, tour: renderTour, lag: renderTour, quiz: renderQuiz, fun: renderFun, orga: renderOrga, info: renderInfo})[tab]();
 }
 main.addEventListener('focusout', () => setTimeout(() => { if(pendingRender && !typing()) render(); }, 80));
 function save(path, value){ return R(path).set(value).catch(e => toast(/PERMISSION_DENIED/i.test(e.message) ? 'Speichern abgelehnt: In Firebase fehlen die Regeln für „jga“.' : 'Speichern fehlgeschlagen: ' + e.message, true)); }
@@ -440,20 +443,26 @@ function renderMap(){
   setTimeout(() => map.invalidateSize(), 50);
 }
 
-/* ---------- Bierpong-Turnier ---------- */
+/* ---------- Turniere: Bierpong und LAG (Tennis), gleiches Modul ---------- */
+const TOURS = {
+  tour: {label:'Bierpong', teams:'teams', results:'results', draw:'draw', note:'Auslosung am Donnerstag um 14:00 Uhr im Bus. Bis dahin müssen alle 8 Teams eingetragen sein.', champ:'Bierpong-Sieger'},
+  lag:  {label:'LAG', teams:'tennisTeams', results:'tennisResults', draw:'tennisDraw', note:'Auslosung vor dem Tennis am Freitag. Bis dahin müssen alle 8 Teams eingetragen sein.', champ:'LAG-Sieger'},
+};
+let T = TOURS.tour;
+const TD = () => ({teams: D[T.teams] || {}, results: D[T.results] || {}, draw: D[T.draw]});
 const TEAM_IDS = [1,2,3,4,5,6,7,8];
 const GROUPS = {A:[1,2,3,4], B:[5,6,7,8]};
 const GROUP_GAMES = {A:[['A1',1,2],['A2',3,4],['A3',1,3],['A4',2,4],['A5',1,4],['A6',2,3]], B:[['B1',5,6],['B2',7,8],['B3',5,7],['B4',6,8],['B5',5,8],['B6',6,7]]};
-/* Teams melden sich selbst an (D.teams, beliebige Schlüssel). Die Auslosung (D.draw.slots) ordnet sie den Plätzen 1–8 zu:
+/* Teams melden sich selbst an (TD().teams, beliebige Schlüssel). Die Auslosung (TD().draw.slots) ordnet sie den Plätzen 1–8 zu:
    1–4 Gruppe A, 5–8 Gruppe B. Alle Tabellen und Spiele arbeiten mit Platznummern. */
-const teamList = () => Object.entries(D.teams).map(([id,t]) => ({id, ...t})).filter(t => (t.name||t.p1||t.p2)).sort((a,b) => (a.at||0)-(b.at||0));
-const drawn = () => !!(D.draw && D.draw.slots);
-const slotTeam = i => { const id = drawn() ? D.draw.slots[i] : null; return id && D.teams[id] ? D.teams[id] : null; };
+const teamList = () => Object.entries(TD().teams).map(([id,t]) => ({id, ...t})).filter(t => (t.name||t.p1||t.p2)).sort((a,b) => (a.at||0)-(b.at||0));
+const drawn = () => !!(TD().draw && TD().draw.slots);
+const slotTeam = i => { const id = drawn() ? TD().draw.slots[i] : null; return id && TD().teams[id] ? TD().teams[id] : null; };
 const REVEAL_MS = 900;
-const revealed = i => !D.draw || !D.draw.at || (Date.now() - D.draw.at) >= i * REVEAL_MS;
+const revealed = i => !TD().draw || !TD().draw.at || (Date.now() - TD().draw.at) >= i * REVEAL_MS;
 const teamName = i => { if(!revealed(i)) return '…'; const t = slotTeam(i); return (t && (t.name || t.p1)) || `Platz ${i}`; };
 const teamSub = i => { if(!revealed(i)) return ''; const t = slotTeam(i) || {}; return t.name ? [t.p1, t.p2].filter(Boolean).join(' & ') : (t.p2 || ''); };
-function result(gid){ const r = D.results[gid]; if(!r || r.a == null || r.b == null || r.a === r.b) return null; return r; }
+function result(gid){ const r = TD().results[gid]; if(!r || r.a == null || r.b == null || r.a === r.b) return null; return r; }
 function standings(g){
   const st = {}; GROUPS[g].forEach(i => st[i] = {i, w:0, l:0, pf:0, pa:0});
   GROUP_GAMES[g].forEach(([gid,a,b]) => { const r = result(gid); if(!r) return; st[a].pf += r.a; st[a].pa += r.b; st[b].pf += r.b; st[b].pa += r.a; if(r.a > r.b){ st[a].w++; st[b].l++; } else { st[b].w++; st[a].l++; } });
@@ -468,7 +477,7 @@ function koTeams(){
   return {s1, s2, f: [win(s1,r1), win(s2,r2)], p3: [lose(s1,r1), lose(s2,r2)]};
 }
 function gameRow(gid, a, b, label){
-  const r = D.results[gid], done = result(gid);
+  const r = TD().results[gid], done = result(gid);
   const nm = i => i ? teamName(i) : '<span class="muted">offen</span>';
   const open = openGame === gid;
   return `<div class="game" data-game="${gid}" ${a&&b?'':'style="cursor:default"'}>
@@ -481,6 +490,7 @@ function gameRow(gid, a, b, label){
   </div>`;
 }
 function renderTour(){
+  T = TOURS[tab] || TOURS.tour;
   const teams = teamList();
   const ko = koTeams();
   const fr = result('F'), champ = fr ? (fr.a > fr.b ? ko.f[0] : ko.f[1]) : null;
@@ -492,14 +502,14 @@ function renderTour(){
       <label class="field">Teamname<input type="text" id="tn" value="${esc(t.name||'')}" placeholder="z. B. Die Becherhelden" maxlength="30"></label>
       <div class="editrow"><label class="field">Spieler 1<input type="text" id="tp1" value="${esc(t.p1||'')}" placeholder="Vorname" maxlength="20"></label><label class="field">Spieler 2<input type="text" id="tp2" value="${esc(t.p2||'')}" placeholder="Vorname" maxlength="20"></label></div>
       <div class="row"><button class="btn primary" id="tsave" data-id="${t.id||''}">${t.id ? 'Speichern' : 'Eintragen'}</button>${t.id ? '<button class="btn" id="tcancel">Abbrechen</button>' : ''}</div></div>`;
-  const editing = editItem && D.teams[editItem] ? {id: editItem, ...D.teams[editItem]} : null;
-  const animating = D.draw && D.draw.at && (Date.now() - D.draw.at) < 9 * REVEAL_MS;
+  const editing = editItem && TD().teams[editItem] ? {id: editItem, ...TD().teams[editItem]} : null;
+  const animating = TD().draw && TD().draw.at && (Date.now() - TD().draw.at) < 9 * REVEAL_MS;
   main.innerHTML = `${editBtn(drawn() ? 'Bearbeiten' : 'Teams bearbeiten')}
-    ${champ ? `<div class="champ"><span class="eyebrow" style="color:rgba(255,255,255,.8)">Bierpong-Sieger</span><div class="name">${esc(teamName(champ))}</div><div>${esc(teamSub(champ))}</div></div>` : ''}
+    ${champ ? `<div class="champ"><span class="eyebrow" style="color:rgba(255,255,255,.8)">${T.champ}</span><div class="name">${esc(teamName(champ))}</div><div>${esc(teamSub(champ))}</div></div>` : ''}
     ${!drawn() ? `<div class="card stack">
         <div class="row between"><h3>Angemeldete Teams <span class="muted" style="font-weight:400">${teams.length} von 8</span></h3></div>
         ${regList || '<p class="muted">Noch kein Team eingetragen. Jedes Team trägt sich unten selbst ein.</p>'}
-        <div class="notice">Auslosung am Donnerstag um 14:00 Uhr im Bus. Bis dahin müssen alle 8 Teams eingetragen sein.</div>
+        <div class="notice">${T.note}</div>
         <div class="row"><button class="btn amber" id="drawBtn" ${teams.length === 8 ? '' : 'disabled'}>${teams.length === 8 ? 'Auslosen' : `Auslosen (noch ${8 - teams.length} Team${8-teams.length===1?'':'s'} fehlen)`}</button></div>
       </div>
       ${editing ? regForm(editing) : (teams.length < 8 ? regForm() : '')}`
@@ -513,7 +523,7 @@ function renderTour(){
         <div class="card"><h3>Finale</h3>${gameRow('F', ko.f[0], ko.f[1])}<h3 style="margin-top:12px">Spiel um Platz 3</h3>${gameRow('P3', ko.p3[0], ko.p3[1])}</div>
       </div>`}`;
   wireEdit();
-  if(animating){ clearTimeout(renderTour.t); renderTour.t = setTimeout(() => { if(tab === 'tour') render(); }, REVEAL_MS); }
+  if(animating){ clearTimeout(renderTour.t); renderTour.t = setTimeout(() => { if(tab === 'tour' || tab === 'lag') render(); }, REVEAL_MS); }
   if($('#tsave')) $('#tsave').onclick = () => {
     const name = $('#tn').value.trim(), p1 = $('#tp1').value.trim(), p2 = $('#tp2').value.trim();
     if(!name) return toast('Bitte einen Teamnamen eintragen.', true);
@@ -521,22 +531,22 @@ function renderTour(){
     const dup = teamList().some(t => t.id !== id && (t.name||'').toLowerCase() === name.toLowerCase());
     if(dup) return toast('Den Teamnamen gibt es schon.', true);
     const data = {name, p1, p2}; if(!$('#tsave').dataset.id) data.at = firebase.database.ServerValue.TIMESTAMP;
-    R('teams/' + id).update(data).then(() => { editItem = null; toast($('#tsave') ? 'Gespeichert' : ''); render(); }).catch(e => toast(e.message, true));
+    R(T.teams + '/' + id).update(data).then(() => { editItem = null; toast($('#tsave') ? 'Gespeichert' : ''); render(); }).catch(e => toast(e.message, true));
   };
   if($('#tcancel')) $('#tcancel').onclick = () => { editItem = null; render(); };
   main.querySelectorAll('[data-tedit]').forEach(b => b.onclick = () => { editItem = b.dataset.tedit; render(); });
-  main.querySelectorAll('[data-tdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('teams/' + b.dataset.tdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
+  main.querySelectorAll('[data-tdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R(T.teams + '/' + b.dataset.tdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
   if($('#drawBtn')) $('#drawBtn').onclick = () => {
     const b = $('#drawBtn'); if(!b.dataset.armed){ b.dataset.armed = 1; b.textContent = 'Jetzt wirklich auslosen?'; return; }
     const ids = teamList().map(t => t.id); for(let i = ids.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
     const slots = {}; ids.forEach((id, k) => { slots[k+1] = id; });
-    R('draw').set({slots, at: firebase.database.ServerValue.TIMESTAMP}).catch(e => toast(e.message, true));
+    R(T.draw).set({slots, at: firebase.database.ServerValue.TIMESTAMP}).catch(e => toast(e.message, true));
   };
-  if($('#undoDraw')) $('#undoDraw').onclick = () => { const b = $('#undoDraw'); if(b.dataset.armed){ R('draw').remove(); R('results').remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich? Ergebnisse werden mit gelöscht'; };
+  if($('#undoDraw')) $('#undoDraw').onclick = () => { const b = $('#undoDraw'); if(b.dataset.armed){ R(T.draw).remove(); R(T.results).remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich? Ergebnisse werden mit gelöscht'; };
   main.querySelectorAll('[data-game]').forEach(g => g.onclick = e => { if(e.target.closest('.scoreform')) return; const gid = g.dataset.game; const [a,b] = findTeams(gid); if(!a || !b || !drawn()) return; openGame = openGame === gid ? null : gid; render(); if(openGame) { const i = $('#sa'); if(i) i.focus(); } });
-  if($('#ssave')) $('#ssave').onclick = () => { const a = +$('#sa').value, b = +$('#sb').value; if($('#sa').value === '' || $('#sb').value === '') return toast('Beide Zahlen eintragen.', true); if(a === b) return toast('Unentschieden gibt es nicht. Wer hat gewonnen?', true); R('results/' + openGame).set({a, b, at: firebase.database.ServerValue.TIMESTAMP}).then(() => { openGame = null; toast('Gespeichert'); }).catch(e => toast(e.message, true)); };
-  if($('#sclear')) $('#sclear').onclick = () => { R('results/' + openGame).remove(); openGame = null; };
-  if($('#resetTour')) $('#resetTour').onclick = () => { const b = $('#resetTour'); if(b.dataset.armed){ R('results').remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich alle Ergebnisse löschen?'; };
+  if($('#ssave')) $('#ssave').onclick = () => { const a = +$('#sa').value, b = +$('#sb').value; if($('#sa').value === '' || $('#sb').value === '') return toast('Beide Zahlen eintragen.', true); if(a === b) return toast('Unentschieden gibt es nicht. Wer hat gewonnen?', true); R(T.results + '/' + openGame).set({a, b, at: firebase.database.ServerValue.TIMESTAMP}).then(() => { openGame = null; toast('Gespeichert'); }).catch(e => toast(e.message, true)); };
+  if($('#sclear')) $('#sclear').onclick = () => { R(T.results + '/' + openGame).remove(); openGame = null; };
+  if($('#resetTour')) $('#resetTour').onclick = () => { const b = $('#resetTour'); if(b.dataset.armed){ R(T.results).remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich alle Ergebnisse löschen?'; };
 }
 function findTeams(gid){ for(const g of ['A','B']){ const f = GROUP_GAMES[g].find(x => x[0] === gid); if(f) return [f[1], f[2]]; } const ko = koTeams(); return {S1: ko.s1, S2: ko.s2, F: ko.f, P3: ko.p3}[gid] || [null,null]; }
 
@@ -617,7 +627,7 @@ function renderFun(){
   main.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => R('polls/' + b.dataset.pdel).remove());
 }
 
-/* ---------- Orga: Kasse, Teilnehmer, Tennis ---------- */
+/* ---------- Orga: Kasse, Teilnehmer ---------- */
 const eur = n => (Math.round(n*100)/100).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €';
 function settlement(){
   const people = peopleList(); if(!people.length) return {bal: [], moves: []};
@@ -635,7 +645,6 @@ function renderOrga(){
   const ex = Object.entries(D.expenses).map(([id,e]) => ({id, ...e})).sort((a,b) => (b.at||0)-(a.at||0));
   const st = settlement();
   const names = people.map(p => p.name);
-  const tn = D.tennis;
   main.innerHTML = `${editBtn()}
     <section class="card stack"><div class="sub-h"><h2>Kasse</h2><span class="muted" style="font-size:13px">${eur(st.total||0)} gesamt</span></div>
       ${st.moves.length ? `<div class="stack" style="gap:6px">${st.moves.map(m => `<div class="settle"><strong>${esc(m.from)}</strong> zahlt <strong>${eur(m.amt)}</strong> an <strong>${esc(m.to)}</strong></div>`).join('')}</div>` : '<p class="muted">Noch keine Ausgaben. Wer etwas auslegt, trägt es hier ein; die Umlage rechnet sich selbst.</p>'}
@@ -653,11 +662,7 @@ function renderOrga(){
       <div class="row"><input type="text" id="personNew" class="grow" placeholder="Name" maxlength="20"><button class="btn primary" id="personAdd">+</button></div>
       <p class="muted" style="font-size:13px">Handynummer, Bett und Essenswünsche über „Bearbeiten“ ergänzen.</p>
     </section>
-    <section class="card stack"><div class="sub-h"><h2>Tennis</h2><span class="muted" style="font-size:13px">Freitag, 2,5 Stunden</span></div>
-      ${tn && tn.courts ? `<div class="stack" style="gap:8px">${tn.courts.map((c,i) => `<div class="settle"><strong>Platz ${i+1}</strong>: ${esc(c[0]||'')} &amp; ${esc(c[1]||'')} <span class="muted">gegen</span> ${esc(c[2]||'')} &amp; ${esc(c[3]||'')}</div>`).join('')}${tn.rest && tn.rest.length ? `<div class="muted" style="font-size:14px">Pause / Wechsel: ${esc(tn.rest.join(', '))}</div>` : ''}</div>
-        <p class="muted" style="font-size:13px">Nach jeder Runde neu auslosen, dann wechseln die Doppel.</p><div class="row"><button class="btn amber small" id="tennisDraw">Neu auslosen</button></div>`
-      : `<p class="muted">Doppel-Paarungen werden aus der Teilnehmerliste ausgelost (4 pro Platz).</p><div class="row"><label class="field" style="width:120px">Plätze<select id="tennisCourts"><option>1</option><option>2</option><option>3</option><option selected>4</option></select></label><button class="btn amber" id="tennisDraw" ${people.length >= 4 ? '' : 'disabled'}>Doppel auslosen</button></div>`}
-    </section>`;
+`;
   wireEdit();
   $('#exFor').onchange = () => { $('#exForList').hidden = $('#exFor').value !== 'some'; };
   $('#exAdd').onclick = () => { const desc = $('#exDesc').value.trim(), amount = parseFloat(String($('#exAmt').value).replace(',', '.')); if(!desc || !(amount > 0)) return toast('Beschreibung und Betrag eintragen.', true);
@@ -667,13 +672,6 @@ function renderOrga(){
   $('#personAdd').onclick = () => { const n = $('#personNew').value.trim(); if(!n) return; if(people.some(p => (p.name||'').toLowerCase() === n.toLowerCase())) return toast('Gibt es schon.', true); R('people/' + uid()).set({name: n, at: firebase.database.ServerValue.TIMESTAMP}); };
   main.querySelectorAll('[data-person]').forEach(inp => inp.oninput = () => { const p = 'people/' + inp.dataset.person + '/' + inp.dataset.k; saveSoon(p, p, inp.value.trim()); });
   main.querySelectorAll('[data-pdel2]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('people/' + b.dataset.pdel2).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
-  if($('#tennisDraw')) $('#tennisDraw').onclick = () => {
-    const n = [...names]; for(let i = n.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [n[i], n[j]] = [n[j], n[i]]; }
-    const courts = Math.min(+($('#tennisCourts') ? $('#tennisCourts').value : (tn && tn.courts ? tn.courts.length : 4)), Math.floor(n.length/4));
-    if(courts < 1) return toast('Mindestens 4 Teilnehmer nötig.', true);
-    const out = []; for(let c = 0; c < courts; c++) out.push(n.slice(c*4, c*4+4));
-    R('tennis').set({courts: out, rest: n.slice(courts*4), at: firebase.database.ServerValue.TIMESTAMP});
-  };
 }
 
 /* ---------- Hütte: Bilder und Infos ---------- */
