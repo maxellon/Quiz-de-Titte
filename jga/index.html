@@ -191,6 +191,14 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 .prog i{display:block;height:100%;background:var(--amber);transition:width 1s}
 .eta .lab{display:flex;justify-content:space-between;font-size:12px;opacity:.8}
 .yn{font-family:var(--display);font-weight:800;font-size:clamp(28px,8vw,40px);text-align:center;padding:12px}
+.train{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.train .b{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.train .b .v{font-family:var(--display);font-weight:800;font-size:clamp(22px,6vw,30px);line-height:1.1;font-variant-numeric:tabular-nums}
+.train .b.last .v{color:var(--bad)}
+.train .b small{display:block;color:var(--muted);font-size:12px}
+.taxi{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;font-size:15px}
+.taxi a{color:var(--pine);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;text-decoration:none}
+.taxi small{color:var(--muted);display:block;font-size:12px}
 /* Wertung */
 .score{display:grid;grid-template-columns:1fr repeat(4,56px) 54px;gap:4px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
 .score input{padding:4px;text-align:center;font-size:14px}
@@ -304,10 +312,11 @@ R('photos').on('value', s => { D.photos = s.val() || {}; render(); applyHero(); 
 R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); }
   else if(!onErr.info2 && !Object.values(D.info).some(b => /notfall/i.test(b.title||''))){ onErr.info2 = true; R('info/' + uid()).set({...SEED_INFO2, order: 99}); }
   if(!onErr.hut3 && s.exists()){ onErr.hut3 = true; Object.entries(D.info).forEach(([id,b]) => { if(/^hütte$/i.test((b.title||'').trim()) && (!/Peerhof/.test(b.text||'') || /Ganzes Haus, bis 15|Gastgeber: Karl|Check-in\/Check-out und Ruhezeiten: hier eintragen/.test(b.text||''))) R('info/' + id + '/text').set(SEED_INFO[0].text); }); }
+  if(!onErr.taxi2 && s.exists()){ onErr.taxi2 = true; Object.entries(D.info).forEach(([id,b]) => { if(/Letzte S-Bahn zur Hütte: hier eintragen/.test(b.text||'')) R('info/' + id + '/text').set((b.text||'').replace('Taxi Innsbruck: +43 512 5311', 'Taxi Innsbruck: +43 512 5311 · Wipptal Taxi (Steinach): +43 664 1223055').replace('Letzte S-Bahn zur Hütte: hier eintragen', 'Letzte S-Bahn Innsbruck → Matrei: siehe Plan (Heimweg-Kachel)')); }); }
   if(!onErr.org && s.exists()){ onErr.org = true; Object.entries(D.info).forEach(([id,b]) => { if(/^Organisation: (Max|Alex, Sven, Max)$/m.test(b.text||'')) R('info/' + id + '/text').set((b.text||'').replace(/^Organisation: (Max|Alex, Sven, Max)$/m, 'Organisation: Alex +49 162 2303116 · Sven +49 176 47720397 · Max +49 163 3936728')); }); }
   if(!onErr.hut2 && s.exists()){ onErr.hut2 = true; Object.entries(D.info).forEach(([id,b]) => { if(/hier eintragen/.test(b.text||'') && /(Hüttenadresse|^Adresse): hier eintragen|^Adresse, Zufahrt/m.test(b.text||'')) R('info/' + id + '/text').set((b.text||'').replace(/Hüttenadresse: hier eintragen/, 'Hüttenadresse: Oberweg 22, 6145 Navis, Tirol').replace(/^Adresse, Zufahrt, Schlüsselübergabe, WLAN: hier eintragen\./, 'Adresse: Oberweg 22, 6145 Navis, Tirol\nZufahrt, Schlüsselübergabe, WLAN: hier eintragen.')); }); }
   render(); }, onErr);
-R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); }, onErr);
+R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); render(); }, onErr);
 const SEED_PEOPLE = [['Alex','+49 162 2303116'],['Sven','+49 176 47720397'],['Max','+49 163 3936728']];
 R('people').on('value', s => { D.people = s.val() || {}; if(!onErr.ppl){ onErr.ppl = true; SEED_PEOPLE.forEach(([n,ph]) => { const ex = Object.entries(D.people).find(([,p]) => (p.name||'').toLowerCase() === n.toLowerCase()); if(!ex) R('people/' + uid()).set({name: n, phone: ph, at: firebase.database.ServerValue.TIMESTAMP}); else if(!ex[1].phone) R('people/' + ex[0] + '/phone').set(ph); }); } render(); renderMe(); }, onErr);
 R('expenses').on('value', s => { D.expenses = s.val() || {}; render(); }, onErr);
@@ -319,7 +328,7 @@ R('tennisResults').on('value', s => { D.tennisResults = s.val() || {}; render();
 R('tennisDraw').on('value', s => { D.tennisDraw = s.val() || null; openGame = null; render(); }, onErr);
 let wallSub = false;
 function subWall(){ if(wallSub) return; wallSub = true; R('wall').on('value', s => { D.wall = s.val() || {}; render(); }, onErr); }
-const SEED_INFO2 = {title:'Notfall und Treffpunkt', text:'Hüttenadresse: hier eintragen\nNotruf Österreich: 112\nTaxi Innsbruck: +43 512 5311\nLetzte S-Bahn zur Hütte: hier eintragen\nWer verloren geht: Standort in der Gruppe teilen und am Goldenen Dachl warten.'};
+const SEED_INFO2 = {title:'Notfall und Treffpunkt', text:'Hüttenadresse: Oberweg 22, 6145 Navis, Tirol\nNotruf Österreich: 112\nTaxi Innsbruck: +43 512 5311 · Wipptal Taxi (Steinach): +43 664 1223055\nLetzte S-Bahn Innsbruck → Matrei: siehe Plan (Heimweg-Kachel)\nWer verloren geht: Standort in der Gruppe teilen und am Goldenen Dachl warten.'};
 
 function applyHero(){
   const id = D.settings.heroPhoto; const ph = id && D.photos[id] ? D.photos[id] : Object.values(D.photos).sort((a,b) => (a.at||0)-(b.at||0))[0];
@@ -393,6 +402,7 @@ function renderPlan(){
       ${curItem && nextItem ? `<div class="next">Danach ${esc(nextItem.time)} · ${esc(nextItem.title)} <strong>${cdText(nextItem)}</strong></div>` : ''}
     </div>`;
   html += `<div id="wx"></div>`;
+  html += trainCard();
   loadWeather();
   for(const [key, name, date] of DAYS){
     const list = items.filter(it => it.day === key);
@@ -408,7 +418,7 @@ function renderPlan(){
       ${edit ? `<div><button class="btn small primary" data-add="${key}">+ Programmpunkt</button></div>` : ''}
     </section>`;
   }
-  main.innerHTML = html; wireEdit();
+  main.innerHTML = html; wireEdit(); wireTrain();
   main.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editItem = b.dataset.edit; render(); });
   main.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const id = uid(); R('schedule/' + id).set({day: b.dataset.add, time:'12:00', title:'Neuer Programmpunkt', place:'', addr:'', note:'', order: 99}); editItem = id; });
   wireItemForm();
@@ -440,6 +450,42 @@ function wireItemForm(){
     $('#f-geo').disabled = false;
   };
 }
+
+/* Taxis (aus Online-Verzeichnissen Okt. 2026, vor der Fahrt prüfen) */
+const TAXIS = [
+  ['Taxi 5311 Innsbruck (Funk-Taxi-Zentrale)', '+43 512 5311', 'Innsbruck, 24 h'],
+  ['Taxi Driver Tirol', '+43 664 1355060', 'Innsbruck, Großraumtaxi'],
+  ['Alps Express Taxi Innsbruck', '+43 650 3052594', 'Innsbruck'],
+  ['Airport Taxi Innsbruck', '+43 676 5514741', 'Innsbruck'],
+  ['Wipptal Taxi', '+43 664 1223055', 'Steinach am Brenner, nächstes Taxi zur Hütte'],
+  ['Busreisen Wipptal Mair', '+43 5273 6225', 'Matrei am Brenner, auch Kleinbus'],
+];
+/* S-Bahn Innsbruck Hbf → Matrei am Brenner: Muster :19 / :49, 16 Min. Fahrzeit (Fahrplan 2026). In der App unter Bearbeiten anpassbar. */
+const DEFAULT_DEPS = (() => { const a = []; for(let h = 5; h <= 22; h++){ a.push(`${String(h).padStart(2,'0')}:19`); a.push(`${String(h).padStart(2,'0')}:49`); } a.push('23:19'); return a.join(', '); })();
+const deps = () => ((D.settings.train && D.settings.train.deps) || DEFAULT_DEPS).split(/[,\s]+/).map(x => x.trim()).filter(x => /^\d{1,2}:\d{2}$/.test(x)).map(x => x.padStart(5,'0')).sort();
+function trainCard(){
+  const list = deps(); if(!list.length) return '';
+  const n = new Date(), nowMin = n.getHours()*60 + n.getMinutes();
+  const toMin = t => +t.slice(0,2)*60 + +t.slice(3);
+  const next = list.find(t => toMin(t) >= nowMin), last = list[list.length-1];
+  const diff = t => toMin(t) - nowMin;
+  const fmt = m => m < 60 ? `in ${m} Min.` : `in ${Math.floor(m/60)} h ${m%60} Min.`;
+  const lastGone = toMin(last) < nowMin;
+  return `<div class="card stack" style="gap:8px"><div class="sub-h"><h3>Heimweg: S-Bahn Innsbruck Hbf → Matrei</h3>${edit ? '<button class="btn small" id="trainEdit">Fahrplan ändern</button>' : ''}</div>
+    <div class="train">
+      <div class="b"><small>Nächste Bahn</small><div class="v">${next ? next : '–'}</div><small>${next ? fmt(diff(next)) : 'heute keine mehr'}</small></div>
+      <div class="b last"><small>Letzte Bahn</small><div class="v">${last}</div><small>${lastGone ? 'ist weg · Taxi!' : fmt(diff(last))}</small></div>
+    </div>
+    <p class="muted" style="font-size:13px">16 Min. Fahrzeit, ab Bahnhof Matrei mit dem Taxi zur Hütte. Zeiten nach Fahrplanmuster 2026, Verspätungen live: <a href="https://fahrplan.oebb.at/bin/query.exe/dn?S=Innsbruck+Hbf&Z=Matrei+am+Brenner&start=1" target="_blank" rel="noopener" style="color:var(--pine)">ÖBB-Auskunft</a></p>
+    ${edit ? `<div class="stack" id="trainForm" hidden><textarea id="trainDeps" style="min-height:70px">${esc(list.join(', '))}</textarea><div class="row"><button class="btn primary small" id="trainSave">Speichern</button><button class="btn small" id="trainReset">Standard</button></div><p class="muted" style="font-size:12px">Abfahrtszeiten ab Innsbruck Hbf, mit Komma getrennt.</p></div>` : ''}
+  </div>`;
+}
+function wireTrain(){
+  if($('#trainEdit')) $('#trainEdit').onclick = () => { $('#trainForm').hidden = !$('#trainForm').hidden; };
+  if($('#trainSave')) $('#trainSave').onclick = () => R('settings/train/deps').set($('#trainDeps').value).then(() => toast('Fahrplan gespeichert'));
+  if($('#trainReset')) $('#trainReset').onclick = () => R('settings/train').remove();
+}
+setInterval(() => { if(tab === 'plan' && !typing()) render(); }, 60000);
 
 /* Wetter Innsbruck (Open-Meteo, kostenlos, ohne Schlüssel; Vorhersage erst ab ca. 16 Tage vorher) */
 let wxCache = null, wxAt = 0;
@@ -756,6 +802,7 @@ function renderInfo(){
       <div class="gallery">${photos.map(p => `<figure class="${p.id===heroId?'hero-pick':''}"><img src="${p.img}" alt="${esc(p.caption||'')}" loading="lazy">${p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : ''}${edit ? `<div class="acts"><button class="btn" data-hero="${p.id}" title="Als Titelbild">★</button><button class="btn" data-pdel="${p.id}" title="Löschen">✕</button></div>` : ''}</figure>`).join('') || '<p class="muted">Noch keine Fotos. Lade Bilder von der Hütte hoch; das erste wird zum Titelbild.</p>'}</div>
       ${edit && photos.length ? '<p class="muted" style="font-size:13px">★ macht ein Foto zum Titelbild oben.</p>' : ''}
     </section>
+    <section class="card stack"><h3>Taxis für den Heimweg</h3><div class="taxi">${TAXIS.map(([n,t,w]) => `<div>${esc(n)}<small>${esc(w)}</small></div><a href="tel:${t.replace(/\s/g,'')}">${esc(t)}</a>`).join('')}</div><p class="muted" style="font-size:12px">Nummern aus Online-Verzeichnissen (Okt. 2026), vor der Fahrt kurz prüfen. Großraumtaxi für 8 Personen rechtzeitig vorbestellen.</p></section>
     <section class="stack">${infos.map(b => edit ? `<div class="card stack" data-info="${b.id}"><input type="text" data-ik="title" value="${esc(b.title)}" placeholder="Überschrift"><textarea data-ik="text" placeholder="Text">${esc(b.text||'')}</textarea><div class="row between"><span class="muted" style="font-size:13px">Wird beim Verlassen des Felds gespeichert</span><button class="btn small danger" data-idel="${b.id}">Löschen</button></div></div>`
       : `<div class="card infoblock"><h3>${esc(b.title)}</h3><div class="txt">${linkify(b.text||'')}</div></div>`).join('')}
       ${edit ? `<div><button class="btn small primary" id="addInfo">+ Infoblock</button></div>` : ''}
