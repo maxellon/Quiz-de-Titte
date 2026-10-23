@@ -70,18 +70,24 @@ const ls = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null?d:
 const ME = ls.get('jga-me', '');
 /* Diese Punkte müssen drin sein (werden einmalig ergänzt, falls sie fehlen) */
 const MUST = [
-  'Taxi vorbestellen: Freitagmorgen Hütte → Bäckerei Aste Matrei und zurück (Semmeln)',
-  'Taxi vorbestellen: Freitag 11:30 Hütte → Bahnhof Matrei am Brenner (2 Großraumtaxis)',
-  'Pizza bestellen: Pizzeria Toscana Matrei, +43 5273 60437, 16 Pizzen für Donnerstag ca. 16 Uhr',
-  'Tennishalle bestellen: 4 Plätze, Freitag 14–16:30 (TI Innsbruck +43 677 64000130 oder IEV +43 512 373031)',
+  ['taxi-semmeln', 'Taxi vorbestellen: Freitagmorgen Hütte → Bäckerei Aste Matrei und zurück (Semmeln)'],
+  ['taxi-sbahn', 'Taxi vorbestellen: Freitag 11:30 Hütte → Bahnhof Matrei am Brenner (2 Großraumtaxis)'],
+  ['pizza', 'Pizza bestellen: Pizzeria Toscana Matrei, +43 5273 60437, 16 Pizzen für Donnerstag ca. 16 Uhr'],
+  ['tennis', 'Tennishalle bestellen: 4 Plätze, Freitag 14–16:30 (TI Innsbruck +43 677 64000130 oder IEV +43 512 373031)'],
+  ['fruehstueck', 'Frühstückslocation buchen: Donnerstag 9–11 Uhr, 16 Personen, fußläufig vom P+R Oberesslingen'],
+  ['bus', 'Bus final buchen: Do 11:00 ab Oberesslingen, Stopp Matrei, Hütte Navis; Sa 10:00 ab Innsbruck zurück'],
+  ['getraenke', 'Getränkehändler anfragen: Lieferung an die Hütte (Bier, Wasser, Softdrinks, Bierpong-Bier) für Donnerstag'],
 ];
+/* Alte Doppelung aus der ersten Liste */
+const DROP = ['Frühstückslocation Oberesslingen für Donnerstag 9 Uhr reservieren'];
 let todos = {}, showDone = false, ensured = false;
 let typingId = null;
 const toast = (m, err) => { let n = $('#toast'); if(!n){ n = document.createElement('div'); n.id = 'toast'; n.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:5;max-width:90vw'; document.body.appendChild(n); } n.innerHTML = `<div class="notice ${err?'err':''}">${esc(m)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => n.innerHTML = '', 3000); };
 R('todos').on('value', s => {
   todos = s.val() || {};
-  if(!ensured){ ensured = true; const texts = Object.values(todos).map(t => (t.text||'').toLowerCase()); const u = {};
-    MUST.forEach((t, i) => { const key = t.split(':')[0].toLowerCase(); if(!texts.some(x => x.startsWith(key) && x.includes(t.split(':')[1].trim().slice(0,12).toLowerCase()))) u[uid()] = {text: t, who: '', done: false, order: -10 + i}; });
+  if(!ensured){ ensured = true; const u = {}; const entries = Object.entries(todos);
+    MUST.forEach(([key, text], i) => { if(!entries.some(([,t]) => t.key === key || t.text === text)) u[uid()] = {key, text, who: '', done: false, order: -10 + i}; });
+    entries.forEach(([id, t]) => { if(DROP.includes(t.text)) u[id] = null; });
     if(Object.keys(u).length) R('todos').update(u); }
   render();
 }, e => { $('#list').innerHTML = `<div class="notice err">Keine Verbindung: ${esc(e.message)}</div>`; });
