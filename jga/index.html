@@ -195,13 +195,14 @@ function compressImage(file, max){
 }
 
 /* ---------- Daten (live) ---------- */
-const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {} };
+const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {}, draw: null };
 let tab = ls.get('jga-tab', 'plan'), edit = false, openGame = null, editItem = null;
 const DAYS = [['do','Donnerstag','6. Mai'],['fr','Freitag','7. Mai'],['sa','Samstag','8. Mai']];
 const SEED_SCHEDULE = [
   {day:'do', time:'08:30', title:'Treffpunkt', place:'Park-and-Ride Oberesslingen', addr:'P+R Bahnhof Oberesslingen, Esslingen am Neckar', note:''},
   {day:'do', time:'09:00', title:'Zu Fuß zum Frühstück', place:'Frühstückslocation', addr:'', note:'Frühstück bis ca. 11 Uhr'},
   {day:'do', time:'11:00', title:'Bustransfer nach Innsbruck', place:'Bus ab Oberesslingen', addr:'', note:'ca. 4 bis 5 Stunden. Quiz-Runden im Bus!'},
+  {day:'do', time:'14:00', title:'Bierpong-Auslosung', place:'Im Bus', addr:'', note:'Alle 8 Teams müssen bis dahin unter „Bierpong“ eingetragen sein. Dann wird live ausgelost.'},
   {day:'do', time:'16:30', title:'Ankunft in der Hütte', place:'Unsere Hütte', addr:'', note:'ca. 16:30 bis 17 Uhr'},
   {day:'do', time:'19:00', title:'Bierpong-Turnier, Party, Open End', place:'Hütte', addr:'', note:'Turnierbaum unter „Bierpong“'},
   {day:'fr', time:'10:00', title:'Frühstück', place:'Hütte', addr:'', note:''},
@@ -219,9 +220,12 @@ const SEED_INFO = [
 ];
 let seeded = false;
 const onErr = e => { if(!onErr.shown){ onErr.shown = true; main.insertAdjacentHTML('afterbegin', `<div class="notice err">Keine Verbindung zu den Daten: ${/permission/i.test(e.message) ? 'In Firebase fehlen die Regeln für „jga“ (Realtime Database → Regeln).' : esc(e.message)}</div>`); } };
-R('schedule').on('value', s => { D.schedule = s.val() || {}; if(!seeded && !s.exists()){ seeded = true; const u = {}; SEED_SCHEDULE.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('schedule').set(u); } render(); }, onErr);
+R('schedule').on('value', s => { D.schedule = s.val() || {}; if(!seeded && !s.exists()){ seeded = true; const u = {}; SEED_SCHEDULE.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('schedule').set(u); }
+  else if(!seeded && s.exists() && !Object.values(D.schedule).some(it => /auslosung/i.test(it.title||''))){ seeded = true; R('schedule/' + uid()).set({...SEED_SCHEDULE.find(it => it.title === 'Bierpong-Auslosung'), order: 3}); }
+  render(); }, onErr);
 R('teams').on('value', s => { D.teams = s.val() || {}; render(); }, onErr);
 R('results').on('value', s => { D.results = s.val() || {}; render(); }, onErr);
+R('draw').on('value', s => { D.draw = s.val() || null; openGame = null; render(); }, onErr);
 R('quiz').on('value', s => { D.quiz = s.val() || {}; render(); }, onErr);
 R('photos').on('value', s => { D.photos = s.val() || {}; render(); applyHero(); }, onErr);
 R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); } render(); }, onErr);
@@ -330,8 +334,15 @@ function renderMap(){
 const TEAM_IDS = [1,2,3,4,5,6,7,8];
 const GROUPS = {A:[1,2,3,4], B:[5,6,7,8]};
 const GROUP_GAMES = {A:[['A1',1,2],['A2',3,4],['A3',1,3],['A4',2,4],['A5',1,4],['A6',2,3]], B:[['B1',5,6],['B2',7,8],['B3',5,7],['B4',6,8],['B5',5,8],['B6',6,7]]};
-const teamName = i => (D.teams[i] && D.teams[i].name) || `Team ${i}`;
-const teamSub = i => { const t = D.teams[i] || {}; return [t.p1, t.p2].filter(Boolean).join(' & '); };
+/* Teams melden sich selbst an (D.teams, beliebige Schlüssel). Die Auslosung (D.draw.slots) ordnet sie den Plätzen 1–8 zu:
+   1–4 Gruppe A, 5–8 Gruppe B. Alle Tabellen und Spiele arbeiten mit Platznummern. */
+const teamList = () => Object.entries(D.teams).map(([id,t]) => ({id, ...t})).filter(t => (t.name||t.p1||t.p2)).sort((a,b) => (a.at||0)-(b.at||0));
+const drawn = () => !!(D.draw && D.draw.slots);
+const slotTeam = i => { const id = drawn() ? D.draw.slots[i] : null; return id && D.teams[id] ? D.teams[id] : null; };
+const REVEAL_MS = 900;
+const revealed = i => !D.draw || !D.draw.at || (Date.now() - D.draw.at) >= i * REVEAL_MS;
+const teamName = i => { if(!revealed(i)) return '…'; const t = slotTeam(i); return (t && (t.name || t.p1)) || `Platz ${i}`; };
+const teamSub = i => { if(!revealed(i)) return ''; const t = slotTeam(i) || {}; return t.name ? [t.p1, t.p2].filter(Boolean).join(' & ') : (t.p2 || ''); };
 function result(gid){ const r = D.results[gid]; if(!r || r.a == null || r.b == null || r.a === r.b) return null; return r; }
 function standings(g){
   const st = {}; GROUPS[g].forEach(i => st[i] = {i, w:0, l:0, pf:0, pa:0});
@@ -360,29 +371,61 @@ function gameRow(gid, a, b, label){
   </div>`;
 }
 function renderTour(){
+  const teams = teamList();
   const ko = koTeams();
   const fr = result('F'), champ = fr ? (fr.a > fr.b ? ko.f[0] : ko.f[1]) : null;
   const tbl = g => `<div class="card"><h3>Gruppe ${g}</h3><table><thead><tr><th>Team</th><th class="n">S</th><th class="n">N</th><th class="n">+/−</th></tr></thead><tbody>
-    ${standings(g).map((s,i) => `<tr class="${i<2?'q':''}"><td><span class="nm">${esc(teamName(s.i))}</span><div class="muted" style="font-size:12px;font-weight:400">${esc(teamSub(s.i))}</div></td><td class="n">${s.w}</td><td class="n">${s.l}</td><td class="n">${s.pf-s.pa>0?'+':''}${s.pf-s.pa}</td></tr>`).join('')}
+    ${standings(g).map((s,i) => `<tr class="${i<2 && drawn()?'q':''}"><td><span class="nm">${esc(teamName(s.i))}</span><div class="muted" style="font-size:12px;font-weight:400">${esc(teamSub(s.i))}</div></td><td class="n">${s.w}</td><td class="n">${s.l}</td><td class="n">${s.pf-s.pa>0?'+':''}${s.pf-s.pa}</td></tr>`).join('')}
   </tbody></table><div style="margin-top:8px">${GROUP_GAMES[g].map(([gid,a,b]) => gameRow(gid,a,b)).join('')}</div></div>`;
-  main.innerHTML = `${editBtn('Teams bearbeiten')}
+  const regList = teams.map((t,n) => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div class="grow"><strong>${esc(t.name || t.p1 || 'Team')}</strong><div class="muted" style="font-size:13px">${esc(t.name ? [t.p1,t.p2].filter(Boolean).join(' & ') : (t.p2||''))}</div></div>${edit ? `<div class="row"><button class="btn small" data-tedit="${t.id}">Ändern</button><button class="btn small danger" data-tdel="${t.id}">✕</button></div>` : ''}</div>`).join('');
+  const regForm = (t = {}) => `<div class="card stack" id="regForm"><h3>${t.id ? 'Team ändern' : 'Team eintragen'}</h3>
+      <label class="field">Teamname<input type="text" id="tn" value="${esc(t.name||'')}" placeholder="z. B. Die Becherhelden" maxlength="30"></label>
+      <div class="editrow"><label class="field">Spieler 1<input type="text" id="tp1" value="${esc(t.p1||'')}" placeholder="Vorname" maxlength="20"></label><label class="field">Spieler 2<input type="text" id="tp2" value="${esc(t.p2||'')}" placeholder="Vorname" maxlength="20"></label></div>
+      <div class="row"><button class="btn primary" id="tsave" data-id="${t.id||''}">${t.id ? 'Speichern' : 'Eintragen'}</button>${t.id ? '<button class="btn" id="tcancel">Abbrechen</button>' : ''}</div></div>`;
+  const editing = editItem && D.teams[editItem] ? {id: editItem, ...D.teams[editItem]} : null;
+  const animating = D.draw && D.draw.at && (Date.now() - D.draw.at) < 9 * REVEAL_MS;
+  main.innerHTML = `${editBtn(drawn() ? 'Bearbeiten' : 'Teams bearbeiten')}
     ${champ ? `<div class="champ"><span class="eyebrow" style="color:rgba(255,255,255,.8)">Bierpong-Sieger</span><div class="name">${esc(teamName(champ))}</div><div>${esc(teamSub(champ))}</div></div>` : ''}
-    ${edit ? `<div class="card stack"><h3>Teams</h3>${TEAM_IDS.map(i => `<div class="teamedit"><span class="no">Team ${i} <small>· Gruppe ${i<=4?'A':'B'}</small></span>
-        <label class="field">Teamname<input type="text" data-team="${i}" data-k="name" value="${esc((D.teams[i]||{}).name||'')}" placeholder="z. B. Die Becherhelden"></label>
-        <label class="field">Spieler 1<input type="text" data-team="${i}" data-k="p1" value="${esc((D.teams[i]||{}).p1||'')}" placeholder="Vorname"></label>
-        <label class="field">Spieler 2<input type="text" data-team="${i}" data-k="p2" value="${esc((D.teams[i]||{}).p2||'')}" placeholder="Vorname"></label></div>`).join('')}<p class="muted" style="font-size:13px">Der Teamname ersetzt überall „Team 1“ usw., sobald du „Fertig“ drückst. Spielernamen erscheinen klein darunter.</p>
-      <div class="row"><button class="btn danger" id="resetTour">Alle Ergebnisse löschen</button></div></div>` : ''}
-    <div class="groups">${tbl('A')}${tbl('B')}</div>
-    <p class="muted">Die ersten zwei jeder Gruppe kommen weiter. Halbfinale über Kreuz: Erster A gegen Zweiter B, Erster B gegen Zweiter A.</p>
-    <div class="bracket">
-      <div class="card"><h3>Halbfinale</h3>${gameRow('S1', ko.s1[0], ko.s1[1], '1. Gruppe A – 2. Gruppe B')}${gameRow('S2', ko.s2[0], ko.s2[1], '1. Gruppe B – 2. Gruppe A')}</div>
-      <div class="card"><h3>Finale</h3>${gameRow('F', ko.f[0], ko.f[1])}<h3 style="margin-top:12px">Spiel um Platz 3</h3>${gameRow('P3', ko.p3[0], ko.p3[1])}</div>
-    </div>`;
+    ${!drawn() ? `<div class="card stack">
+        <div class="row between"><h3>Angemeldete Teams <span class="muted" style="font-weight:400">${teams.length} von 8</span></h3></div>
+        ${regList || '<p class="muted">Noch kein Team eingetragen. Jedes Team trägt sich unten selbst ein.</p>'}
+        <div class="notice">Auslosung am Donnerstag um 14:00 Uhr im Bus. Bis dahin müssen alle 8 Teams eingetragen sein.</div>
+        <div class="row"><button class="btn amber" id="drawBtn" ${teams.length === 8 ? '' : 'disabled'}>${teams.length === 8 ? 'Auslosen' : `Auslosen (noch ${8 - teams.length} Team${8-teams.length===1?'':'s'} fehlen)`}</button></div>
+      </div>
+      ${editing ? regForm(editing) : (teams.length < 8 ? regForm() : '')}`
+    : `${animating ? '<div class="notice" style="text-align:center;font-weight:700">Auslosung läuft …</div>' : ''}
+      ${edit ? `<div class="card stack"><h3>Teams</h3>${regList}${editing ? regForm(editing) : ''}
+        <div class="row"><button class="btn danger" id="undoDraw">Auslosung zurücksetzen</button><button class="btn danger" id="resetTour">Alle Ergebnisse löschen</button></div></div>` : ''}
+      <div class="groups">${tbl('A')}${tbl('B')}</div>
+      <p class="muted">Die ersten zwei jeder Gruppe kommen weiter. Halbfinale über Kreuz: Erster A gegen Zweiter B, Erster B gegen Zweiter A.</p>
+      <div class="bracket">
+        <div class="card"><h3>Halbfinale</h3>${gameRow('S1', ko.s1[0], ko.s1[1], '1. Gruppe A – 2. Gruppe B')}${gameRow('S2', ko.s2[0], ko.s2[1], '1. Gruppe B – 2. Gruppe A')}</div>
+        <div class="card"><h3>Finale</h3>${gameRow('F', ko.f[0], ko.f[1])}<h3 style="margin-top:12px">Spiel um Platz 3</h3>${gameRow('P3', ko.p3[0], ko.p3[1])}</div>
+      </div>`}`;
   wireEdit();
-  main.querySelectorAll('[data-game]').forEach(g => g.onclick = e => { if(e.target.closest('.scoreform')) return; const gid = g.dataset.game; const [a,b] = findTeams(gid); if(!a || !b) return; openGame = openGame === gid ? null : gid; render(); if(openGame) { const i = $('#sa'); if(i) i.focus(); } });
+  if(animating){ clearTimeout(renderTour.t); renderTour.t = setTimeout(() => { if(tab === 'tour') render(); }, REVEAL_MS); }
+  if($('#tsave')) $('#tsave').onclick = () => {
+    const name = $('#tn').value.trim(), p1 = $('#tp1').value.trim(), p2 = $('#tp2').value.trim();
+    if(!name) return toast('Bitte einen Teamnamen eintragen.', true);
+    const id = $('#tsave').dataset.id || uid();
+    const dup = teamList().some(t => t.id !== id && (t.name||'').toLowerCase() === name.toLowerCase());
+    if(dup) return toast('Den Teamnamen gibt es schon.', true);
+    const data = {name, p1, p2}; if(!$('#tsave').dataset.id) data.at = firebase.database.ServerValue.TIMESTAMP;
+    R('teams/' + id).update(data).then(() => { editItem = null; toast($('#tsave') ? 'Gespeichert' : ''); render(); }).catch(e => toast(e.message, true));
+  };
+  if($('#tcancel')) $('#tcancel').onclick = () => { editItem = null; render(); };
+  main.querySelectorAll('[data-tedit]').forEach(b => b.onclick = () => { editItem = b.dataset.tedit; render(); });
+  main.querySelectorAll('[data-tdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('teams/' + b.dataset.tdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
+  if($('#drawBtn')) $('#drawBtn').onclick = () => {
+    const b = $('#drawBtn'); if(!b.dataset.armed){ b.dataset.armed = 1; b.textContent = 'Jetzt wirklich auslosen?'; return; }
+    const ids = teamList().map(t => t.id); for(let i = ids.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    const slots = {}; ids.forEach((id, k) => { slots[k+1] = id; });
+    R('draw').set({slots, at: firebase.database.ServerValue.TIMESTAMP}).catch(e => toast(e.message, true));
+  };
+  if($('#undoDraw')) $('#undoDraw').onclick = () => { const b = $('#undoDraw'); if(b.dataset.armed){ R('draw').remove(); R('results').remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich? Ergebnisse werden mit gelöscht'; };
+  main.querySelectorAll('[data-game]').forEach(g => g.onclick = e => { if(e.target.closest('.scoreform')) return; const gid = g.dataset.game; const [a,b] = findTeams(gid); if(!a || !b || !drawn()) return; openGame = openGame === gid ? null : gid; render(); if(openGame) { const i = $('#sa'); if(i) i.focus(); } });
   if($('#ssave')) $('#ssave').onclick = () => { const a = +$('#sa').value, b = +$('#sb').value; if($('#sa').value === '' || $('#sb').value === '') return toast('Beide Zahlen eintragen.', true); if(a === b) return toast('Unentschieden gibt es nicht. Wer hat gewonnen?', true); R('results/' + openGame).set({a, b, at: firebase.database.ServerValue.TIMESTAMP}).then(() => { openGame = null; toast('Gespeichert'); }).catch(e => toast(e.message, true)); };
   if($('#sclear')) $('#sclear').onclick = () => { R('results/' + openGame).remove(); openGame = null; };
-  main.querySelectorAll('[data-team]').forEach(inp => inp.oninput = () => { const p = 'teams/' + inp.dataset.team + '/' + inp.dataset.k; saveSoon(p, p, inp.value.trim()); });
   if($('#resetTour')) $('#resetTour').onclick = () => { const b = $('#resetTour'); if(b.dataset.armed){ R('results').remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich alle Ergebnisse löschen?'; };
 }
 function findTeams(gid){ for(const g of ['A','B']){ const f = GROUP_GAMES[g].find(x => x[0] === gid); if(f) return [f[1], f[2]]; } const ko = koTeams(); return {S1: ko.s1, S2: ko.s2, F: ko.f, P3: ko.p3}[gid] || [null,null]; }
