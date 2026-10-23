@@ -45,8 +45,9 @@ p{margin:0}
 .hero .in .eyebrow{color:rgba(255,255,255,.8)}
 .hero .count{font-family:var(--display);font-weight:800;font-size:15px;color:var(--amber)}
 .tabs{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
-.tabs .in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
-.tab{appearance:none;border:0;background:none;padding:12px 4px 10px;font-weight:700;font-size:13px;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs .in{max-width:720px;margin:0 auto;display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs .in::-webkit-scrollbar{display:none}
+.tab{appearance:none;border:0;background:none;padding:12px 4px 10px;font-weight:700;font-size:13px;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;flex:1 0 72px;white-space:nowrap}
 .tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tab.on{color:var(--pine);border-bottom-color:var(--amber)}
 .tab:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
@@ -136,6 +137,57 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 .infoblock h3{margin-bottom:4px}
 .infoblock .txt{white-space:pre-wrap;font-size:15px}
 .infoblock .txt a{color:var(--pine)}
+
+/* Jetzt-Kachel */
+.nowcard{background:var(--pine);color:#fff;border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.nowcard .eyebrow{color:rgba(255,255,255,.75)}
+.nowcard .big{font-family:var(--display);font-weight:800;font-size:clamp(20px,5vw,26px);line-height:1.1}
+.nowcard .next{grid-column:1/-1;font-size:14px;color:rgba(255,255,255,.85);border-top:1px solid rgba(255,255,255,.2);padding-top:8px}
+.nowcard .cd{font-family:var(--display);font-weight:800;font-size:22px;color:var(--amber);font-variant-numeric:tabular-nums;text-align:right}
+/* Wetter */
+.wx{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wx .d{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.wx .d .ic{font-size:28px;line-height:1}
+.wx .d .t{font-family:var(--display);font-weight:800;font-size:18px}
+.wx .d small{display:block;color:var(--muted);font-size:12px}
+/* Ich-bin */
+.me{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:500;cursor:pointer}
+/* Listen */
+.check{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.check:first-child{border-top:0}
+.check input[type=checkbox]{width:22px;height:22px;accent-color:var(--pine)}
+.check.done .txt{text-decoration:line-through;color:var(--muted)}
+.check .who{font-size:12px;color:var(--muted)}
+/* Kasse */
+.bal{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-variant-numeric:tabular-nums}
+.bal .pos{color:var(--ok);font-weight:700} .bal .neg{color:var(--bad);font-weight:700}
+.settle{padding:8px 10px;border-radius:10px;background:var(--soft);font-size:15px}
+/* Umfragen */
+.poll .opt{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;margin-top:6px;cursor:pointer;position:relative;overflow:hidden}
+.poll .opt .fill{position:absolute;inset:0;background:color-mix(in srgb,var(--amber) 22%,transparent);z-index:0}
+.poll .opt>*{position:relative}
+.poll .opt.mine{border-color:var(--pine);font-weight:700}
+/* Challenges */
+.chal{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.chal:first-child{border-top:0}
+.chal img{width:100%;max-width:220px;border-radius:10px;margin-top:6px}
+.chal.done .txt{color:var(--muted);text-decoration:line-through}
+/* Fotowand */
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.wall figure{margin:0;border-radius:12px;overflow:hidden;background:var(--soft)}
+.wall img{width:100%;aspect-ratio:1;object-fit:cover}
+.wall figcaption{font-size:12px;padding:5px 8px;color:var(--muted)}
+.rank{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.rank:first-of-type{border-top:0}
+.rank .pos{font-family:var(--display);font-weight:800;font-size:20px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rank.top .pos{color:var(--pine)}
+/* Wertung */
+.score{display:grid;grid-template-columns:1fr repeat(5,44px) 54px;gap:4px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.score input{padding:4px;text-align:center;font-size:14px}
+.score .h{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:700}
+.score .tot{font-family:var(--display);font-weight:800;font-size:16px;text-align:right}
+@media (max-width:480px){.score{grid-template-columns:1fr repeat(5,36px) 46px;font-size:12px}.score input{font-size:13px;padding:3px}}
+.sub-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -146,7 +198,7 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
     <span class="eyebrow">Junggesellenabschied</span>
     <h1>JGA Ferdi · Innsbruck</h1>
     <p>6. bis 8. Mai 2027 · Hütte, Bierpong, Tennis, Kneipentour</p>
-    <span class="count" id="countdown"></span>
+    <div class="row between"><span class="count" id="countdown"></span><button class="me" id="meBtn">Ich bin …</button></div>
   </div>
 </header>
 <nav class="tabs"><div class="in" id="tabs">
@@ -154,6 +206,8 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
   <button class="tab" data-tab="map"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Karte</button>
   <button class="tab" data-tab="tour"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 12v4M8 20h8M9 16h6"/></svg>Bierpong</button>
   <button class="tab" data-tab="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"/></svg>Quiz</button>
+  <button class="tab" data-tab="fun"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>Spaß</button>
+  <button class="tab" data-tab="orga"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>Orga</button>
   <button class="tab" data-tab="info"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg>Hütte</button>
 </div></nav>
 <main id="main"></main>
@@ -195,7 +249,10 @@ function compressImage(file, max){
 }
 
 /* ---------- Daten (live) ---------- */
-const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {}, draw: null };
+const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {}, draw: null,
+  people: {}, expenses: {}, shopping: {}, scores: {}, challenges: {}, wall: {}, songs: {}, polls: {}, tennis: null };
+const DEVICE = (() => { let d = ls.get('jga-device', null); if(!d){ d = uid(); ls.set('jga-device', d); } return d; })();
+let ME = ls.get('jga-me', '');
 let tab = ls.get('jga-tab', 'plan'), edit = false, openGame = null, editItem = null;
 const DAYS = [['do','Donnerstag','6. Mai'],['fr','Freitag','7. Mai'],['sa','Samstag','8. Mai']];
 const SEED_SCHEDULE = [
@@ -228,8 +285,23 @@ R('results').on('value', s => { D.results = s.val() || {}; render(); }, onErr);
 R('draw').on('value', s => { D.draw = s.val() || null; openGame = null; render(); }, onErr);
 R('quiz').on('value', s => { D.quiz = s.val() || {}; render(); }, onErr);
 R('photos').on('value', s => { D.photos = s.val() || {}; render(); applyHero(); }, onErr);
-R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); } render(); }, onErr);
+R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); }
+  else if(!onErr.info2 && !Object.values(D.info).some(b => /notfall/i.test(b.title||''))){ onErr.info2 = true; R('info/' + uid()).set({...SEED_INFO2, order: 99}); }
+  render(); }, onErr);
 R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); }, onErr);
+R('people').on('value', s => { D.people = s.val() || {}; render(); renderMe(); }, onErr);
+R('expenses').on('value', s => { D.expenses = s.val() || {}; render(); }, onErr);
+R('shopping').on('value', s => { D.shopping = s.val() || {}; if(!s.exists()){ const u = {}; SEED_SHOP.forEach((t,i) => { u[uid()] = {text:t, who:'', done:false, order:i}; }); R('shopping').set(u); } render(); }, onErr);
+R('scores').on('value', s => { D.scores = s.val() || {}; render(); }, onErr);
+R('challenges').on('value', s => { D.challenges = s.val() || {}; if(!s.exists()){ const u = {}; SEED_CHAL.forEach((t,i) => { u[uid()] = {text:t, done:false, order:i}; }); R('challenges').set(u); } render(); }, onErr);
+R('songs').on('value', s => { D.songs = s.val() || {}; render(); }, onErr);
+R('polls').on('value', s => { D.polls = s.val() || {}; render(); }, onErr);
+R('tennis').on('value', s => { D.tennis = s.val() || null; render(); }, onErr);
+let wallSub = false;
+function subWall(){ if(wallSub) return; wallSub = true; R('wall').on('value', s => { D.wall = s.val() || {}; render(); }, onErr); }
+const SEED_SHOP = ['Bier (Kasten x6)', 'Bierpong-Becher + Bälle', 'Grillfleisch + Würstchen', 'Brot, Butter, Aufschnitt fürs Frühstück', 'Kaffee', 'Wasser + Softdrinks', 'Müllbeutel', 'Bluetooth-Box'];
+const SEED_CHAL = ['Ferdi hält eine Rede auf seine Zukünftige (mind. 2 Minuten)', 'Ein Gruppenfoto mit einem echten Tiroler in Tracht', 'Ferdi gewinnt ein Bierpong-Spiel gegen ein Team seiner Wahl', 'Ein Fremder singt mit Ferdi ein Lied in der Kneipe', 'Ferdi bestellt in der Kneipe auf Tirolerisch'];
+const SEED_INFO2 = {title:'Notfall und Treffpunkt', text:'Hüttenadresse: hier eintragen\nNotruf Österreich: 112\nTaxi Innsbruck: +43 512 5311\nLetzte S-Bahn zur Hütte: hier eintragen\nWer verloren geht: Standort in der Gruppe teilen und am Goldenen Dachl warten.'};
 
 function applyHero(){
   const id = D.settings.heroPhoto; const ph = id && D.photos[id] ? D.photos[id] : Object.values(D.photos).sort((a,b) => (a.at||0)-(b.at||0))[0];
@@ -242,7 +314,22 @@ function countdown(){
 countdown(); setInterval(countdown, 60000);
 
 /* ---------- Tabs ---------- */
-$('#tabs').onclick = e => { const b = e.target.closest('.tab'); if(!b) return; tab = b.dataset.tab; ls.set('jga-tab', tab); edit = false; openGame = null; editItem = null; render(); };
+$('#tabs').onclick = e => { const b = e.target.closest('.tab'); if(!b) return; tab = b.dataset.tab; ls.set('jga-tab', tab); edit = false; openGame = null; editItem = null; if(tab === 'fun') subWall(); render(); b.scrollIntoView({inline:'center', block:'nearest'}); };
+if(tab === 'fun') subWall();
+/* Ich bin … */
+const peopleList = () => Object.entries(D.people).map(([id,p]) => ({id, ...p})).sort((a,b) => (a.name||'').localeCompare(b.name||'', 'de'));
+function renderMe(){ $('#meBtn').textContent = ME ? `Ich: ${ME}` : 'Ich bin …'; }
+$('#meBtn').onclick = () => {
+  const names = peopleList().map(p => p.name).filter(Boolean);
+  main.insertAdjacentHTML('afterbegin', `<div class="card stack" id="meBox"><h3>Wer bist du?</h3><p class="muted" style="font-size:14px">Damit Fotos, Stimmen und Ausgaben deinen Namen tragen. Wird nur auf diesem Handy gemerkt.</p>
+    <div class="row">${names.map(n => `<button class="btn small ${n===ME?'primary':''}" data-me="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+    <div class="row"><input type="text" id="meName" class="grow" placeholder="Oder Namen eintippen" value="${esc(ME)}" maxlength="20"><button class="btn primary" id="meSave">OK</button></div></div>`);
+  main.querySelectorAll('[data-me]').forEach(b => b.onclick = () => setMe(b.dataset.me));
+  $('#meSave').onclick = () => setMe($('#meName').value.trim());
+  window.scrollTo({top: $('#meBox').offsetTop - 70, behavior:'smooth'});
+};
+function setMe(n){ ME = n; ls.set('jga-me', n); renderMe(); if(n && !peopleList().some(p => (p.name||'').toLowerCase() === n.toLowerCase())) R('people/' + uid()).set({name: n, at: firebase.database.ServerValue.TIMESTAMP}); render(); }
+renderMe();
 /* Während jemand in einem Feld tippt, wird die Seite nicht neu aufgebaut; das holt sie nach dem Verlassen des Felds nach. */
 let pendingRender = false;
 const typing = () => { const a = document.activeElement; return a && main.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
@@ -250,7 +337,7 @@ function render(){
   if(typing()){ pendingRender = true; return; }
   pendingRender = false;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ({plan: renderPlan, map: renderMap, tour: renderTour, quiz: renderQuiz, info: renderInfo})[tab]();
+  ({plan: renderPlan, map: renderMap, tour: renderTour, quiz: renderQuiz, fun: renderFun, orga: renderOrga, info: renderInfo})[tab]();
 }
 main.addEventListener('focusout', () => setTimeout(() => { if(pendingRender && !typing()) render(); }, 80));
 function save(path, value){ return R(path).set(value).catch(e => toast(/PERMISSION_DENIED/i.test(e.message) ? 'Speichern abgelehnt: In Firebase fehlen die Regeln für „jga“.' : 'Speichern fehlgeschlagen: ' + e.message, true)); }
@@ -263,9 +350,21 @@ function wireEdit(){ const b = $('#editToggle'); if(b) b.onclick = () => { edit 
 function renderPlan(){
   const items = Object.entries(D.schedule).map(([id,it]) => ({id, ...it})).sort((a,b) => DAYS.findIndex(d=>d[0]===a.day) - DAYS.findIndex(d=>d[0]===b.day) || (a.time||'').localeCompare(b.time||'') || (a.order||0)-(b.order||0));
   const now = new Date(); const nowKey = ['2027-05-06','2027-05-07','2027-05-08'].indexOf(now.toISOString().slice(0,10)); const hhmm = now.toTimeString().slice(0,5);
-  let currentId = null;
-  if(nowKey >= 0){ const todays = items.filter(it => it.day === DAYS[nowKey][0] && it.time <= hhmm); if(todays.length) currentId = todays[todays.length-1].id; }
+  let currentId = null, nextItem = null, curItem = null;
+  if(nowKey >= 0){
+    const todays = items.filter(it => it.day === DAYS[nowKey][0]);
+    const past = todays.filter(it => it.time <= hhmm); if(past.length){ curItem = past[past.length-1]; currentId = curItem.id; }
+    nextItem = todays.find(it => it.time > hhmm) || items.find(it => DAYS.findIndex(d=>d[0]===it.day) > nowKey) || null;
+  } else if(now < new Date('2027-05-06T00:00:00+02:00')) nextItem = items[0] || null;
+  const cdText = it => { if(!it) return ''; const dIdx = DAYS.findIndex(d=>d[0]===it.day); const t = new Date(`2027-05-0${6+dIdx}T${it.time||'00:00'}:00+02:00`); const m = Math.round((t - now)/60000); if(m < 0) return ''; if(m < 60) return `in ${m} Min.`; if(m < 48*60) return `in ${Math.floor(m/60)} h ${m%60} Min.`; return `in ${Math.round(m/1440)} Tagen`; };
   let html = editBtn();
+  if(curItem || nextItem) html += `<div class="nowcard">
+      <div><span class="eyebrow">${curItem ? 'Jetzt' : 'Als Nächstes'}</span><div class="big">${esc((curItem || nextItem).title)}</div><div style="font-size:14px;opacity:.85">${esc((curItem || nextItem).place || '')}</div></div>
+      <div class="cd">${curItem ? esc(curItem.time) : cdText(nextItem)}</div>
+      ${curItem && nextItem ? `<div class="next">Danach ${esc(nextItem.time)} · ${esc(nextItem.title)} <strong>${cdText(nextItem)}</strong></div>` : ''}
+    </div>`;
+  html += `<div id="wx"></div>`;
+  loadWeather();
   for(const [key, name, date] of DAYS){
     const list = items.filter(it => it.day === key);
     html += `<section class="card day"><h2>${name} <span>${date}</span></h2>${list.map(it => it.id === editItem ? itemForm(it) : `
@@ -311,6 +410,19 @@ function wireItemForm(){
     }catch(e){ toast(e.message, true); $('#f-geo').textContent = 'Auf Karte setzen'; }
     $('#f-geo').disabled = false;
   };
+}
+
+/* Wetter Innsbruck (Open-Meteo, kostenlos, ohne Schlüssel; Vorhersage erst ab ca. 16 Tage vorher) */
+let wxCache = null, wxAt = 0;
+async function loadWeather(){
+  const box = () => $('#wx'); if(!box()) return;
+  const draw = d => { const b = box(); if(!b) return; if(!d){ b.innerHTML = '<p class="muted" style="font-size:13px">Wetter für Innsbruck erscheint hier ab ca. 22. April 2027.</p>'; return; }
+    const ic = c => c===0?'☀️':c<=2?'🌤️':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'🌨️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
+    b.innerHTML = `<div class="wx">${d.time.map((t,i) => `<div class="d"><small>${['Do','Fr','Sa'][i]} ${t.slice(8)}.5.</small><div class="ic">${ic(d.weathercode[i])}</div><div class="t">${Math.round(d.temperature_2m_max[i])}°</div><small>${Math.round(d.temperature_2m_min[i])}° · Regen ${d.precipitation_probability_max[i] ?? '–'} %</small></div>`).join('')}</div><p class="muted" style="font-size:12px;margin-top:4px">Wetter Innsbruck, Open-Meteo</p>`; };
+  if(wxCache && Date.now() - wxAt < 30*60000) return draw(wxCache);
+  if(wxCache === false && Date.now() - wxAt < 30*60000) return draw(null);
+  try{ const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=47.2692&longitude=11.4041&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FBerlin&start_date=2027-05-06&end_date=2027-05-08'); const j = await r.json(); if(!j.daily) throw 0; wxCache = j.daily; wxAt = Date.now(); draw(wxCache); }
+  catch(e){ wxCache = false; wxAt = Date.now(); draw(null); }
 }
 
 /* ---------- Karte ---------- */
@@ -446,6 +558,133 @@ function renderQuiz(){
   wireEdit();
   if($('#qAdd')) $('#qAdd').onclick = () => { const t = $('#qTitle').value.trim(); if(!t) return; R('quiz/list/' + uid()).set({title: t, note: $('#qNote').value.trim(), order: Date.now()}); };
   main.querySelectorAll('[data-qdel]').forEach(b => b.onclick = () => R('quiz/list/' + b.dataset.qdel).remove());
+}
+
+/* ---------- Spaß: Wertung, Challenges, Fotowand, Playlist, Umfragen ---------- */
+const CATS = [['quiz','Quiz'],['pong','Pong'],['tennis','Tennis'],['chal','Aufg.'],['misc','Sonst.']];
+const who = () => ME || 'Jemand';
+function renderFun(){
+  const people = peopleList();
+  const total = p => CATS.reduce((a,[k]) => a + (+((D.scores[p.id]||{})[k]) || 0), 0);
+  const ranked = people.map(p => ({...p, total: total(p)})).sort((a,b) => b.total - a.total || a.name.localeCompare(b.name,'de'));
+  const chals = Object.entries(D.challenges).map(([id,c]) => ({id, ...c})).sort((a,b) => (a.done?1:0)-(b.done?1:0) || (a.order||0)-(b.order||0));
+  const wall = Object.entries(D.wall).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
+  const songs = Object.entries(D.songs).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
+  const polls = Object.entries(D.polls).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
+  main.innerHTML = `${editBtn()}
+    <section class="card stack"><div class="sub-h"><h2>Gesamtwertung</h2><span class="muted" style="font-size:13px">Quiz, Bierpong, Tennis, Aufgaben</span></div>
+      ${people.length ? (edit ? `<div class="score"><span></span>${CATS.map(([k,l]) => `<span class="h">${l}</span>`).join('')}<span class="h">Gesamt</span>
+        ${ranked.map(p => `<span style="overflow-wrap:anywhere">${esc(p.name)}</span>${CATS.map(([k]) => `<input type="number" inputmode="numeric" data-score="${p.id}" data-cat="${k}" value="${(D.scores[p.id]||{})[k] ?? ''}" placeholder="0">`).join('')}<span class="tot">${p.total}</span>`).join('')}</div>
+        <p class="muted" style="font-size:13px">Punkte je Disziplin eintragen, z. B. 3/2/1 für die ersten drei. Wird beim Tippen gespeichert.</p>`
+      : ranked.map((p,i) => `<div class="rank ${i<3?'top':''}"><span class="pos">${i+1}.</span><span>${esc(p.name)}<div class="muted" style="font-size:12px">${CATS.filter(([k]) => (D.scores[p.id]||{})[k]).map(([k,l]) => `${l} ${(D.scores[p.id]||{})[k]}`).join(' · ')}</div></span><span class="score-pts" style="font-family:var(--display);font-weight:800;font-size:18px">${p.total}</span></div>`).join(''))
+      : '<p class="muted">Sobald Teilnehmer eingetragen sind (Orga → Teilnehmer), erscheint hier die Rangliste.</p>'}
+    </section>
+    <section class="card stack"><div class="sub-h"><h2>Aufgaben für Ferdi</h2><span class="muted" style="font-size:13px">${chals.filter(c => c.done).length} von ${chals.length} geschafft</span></div>
+      ${chals.map(c => `<div class="chal ${c.done?'done':''}"><input type="checkbox" data-cdone="${c.id}" ${c.done?'checked':''} style="width:22px;height:22px;accent-color:var(--pine)">
+        <div><div class="txt">${esc(c.text)}</div>${c.done ? `<div class="muted" style="font-size:12px">Erledigt${c.by ? ' · bestätigt von ' + esc(c.by) : ''}</div>` : ''}${c.img ? `<img src="${c.img}" alt="">` : ''}
+        <div class="row" style="margin-top:4px"><button class="btn small" data-cphoto="${c.id}">${c.img ? 'Beweisfoto ersetzen' : 'Beweisfoto'}</button>${edit ? `<button class="btn small danger" data-cdel="${c.id}">Löschen</button>` : ''}</div></div></div>`).join('')}
+      <div class="row"><input type="text" id="chalNew" class="grow" placeholder="Neue Aufgabe" maxlength="140"><button class="btn primary" id="chalAdd">+</button></div>
+      <input type="file" id="chalFile" accept="image/*" capture="environment" hidden>
+    </section>
+    <section class="card stack"><div class="sub-h"><h2>Fotowand</h2><div><button class="btn small primary" id="wallAdd">+ Foto</button><input type="file" id="wallFile" accept="image/*" multiple hidden></div></div>
+      ${wallSub ? (wall.length ? `<div class="wall">${wall.map(w => `<figure><img src="${w.img}" alt="" loading="lazy"><figcaption>${esc(w.by||'')}${w.at ? ' · ' + new Date(w.at).toLocaleString('de-DE',{weekday:'short',hour:'2-digit',minute:'2-digit'}) : ''}${edit ? ` <button class="btn small danger" data-wdel="${w.id}" style="padding:2px 6px">✕</button>` : ''}</figcaption></figure>`).join('')}</div>` : '<p class="muted">Noch keine Fotos. Alles, was hier landet, sehen alle sofort.</p>') : '<p class="muted">Lädt …</p>'}
+    </section>
+    <section class="card stack"><div class="sub-h"><h2>Playlist-Wünsche</h2><span class="muted" style="font-size:13px">für Bus und Hütte</span></div>
+      ${songs.map(x => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div class="grow"><strong>${esc(x.title)}</strong>${x.artist ? ` <span class="muted">· ${esc(x.artist)}</span>` : ''}<div class="muted" style="font-size:12px">${esc(x.by||'')}</div></div>${edit ? `<button class="btn small danger" data-sdel="${x.id}">✕</button>` : ''}</div>`).join('') || '<p class="muted">Noch keine Wünsche.</p>'}
+      <div class="editrow"><input type="text" id="songT" placeholder="Titel" maxlength="60"><input type="text" id="songA" placeholder="Interpret" maxlength="60"></div><div><button class="btn primary small" id="songAdd">+ Wunsch</button></div>
+    </section>
+    <section class="card stack"><div class="sub-h"><h2>Umfragen</h2></div>
+      ${polls.map(pl => { const opts = pl.options || []; const votes = pl.votes || {}; const n = Object.keys(votes).length; const cnt = opts.map((_,i) => Object.values(votes).filter(v => v === i).length); const mine = votes[DEVICE];
+        return `<div class="poll"><div class="row between"><strong>${esc(pl.q)}</strong><span class="muted" style="font-size:12px">${n} Stimme${n===1?'':'n'}${pl.closed ? ' · beendet' : ''}</span></div>
+          ${opts.map((o,i) => `<div class="opt ${mine===i?'mine':''}" data-vote="${pl.id}" data-i="${i}"><div class="fill" style="width:${n ? 100*cnt[i]/n : 0}%"></div><span>${esc(o)}</span><span>${cnt[i]}</span></div>`).join('')}
+          ${edit ? `<div class="row" style="margin-top:6px"><button class="btn small" data-pclose="${pl.id}">${pl.closed ? 'Wieder öffnen' : 'Beenden'}</button><button class="btn small danger" data-pdel="${pl.id}">Löschen</button></div>` : ''}</div>`; }).join('') || '<p class="muted">Noch keine Umfrage.</p>'}
+      <div class="stack" style="gap:6px;margin-top:6px"><input type="text" id="pollQ" placeholder="Frage, z. B. Pizza oder Burger?" maxlength="100"><input type="text" id="pollO" placeholder="Antworten, mit Komma getrennt" maxlength="200"><div><button class="btn primary small" id="pollAdd">+ Umfrage</button></div></div>
+    </section>`;
+  wireEdit();
+  main.querySelectorAll('[data-score]').forEach(inp => inp.oninput = () => { const p = 'scores/' + inp.dataset.score + '/' + inp.dataset.cat; saveSoon(p, p, inp.value === '' ? null : +inp.value); });
+  main.querySelectorAll('[data-cdone]').forEach(c => c.onchange = () => R('challenges/' + c.dataset.cdone).update({done: c.checked, by: c.checked ? who() : null, at: firebase.database.ServerValue.TIMESTAMP}));
+  main.querySelectorAll('[data-cdel]').forEach(b => b.onclick = () => R('challenges/' + b.dataset.cdel).remove());
+  let chalTarget = null;
+  main.querySelectorAll('[data-cphoto]').forEach(b => b.onclick = () => { chalTarget = b.dataset.cphoto; $('#chalFile').click(); });
+  $('#chalFile').onchange = async e => { const f = e.target.files[0]; if(!f || !chalTarget) return; try{ const img = await compressImage(f, 900); await R('challenges/' + chalTarget).update({img, done: true, by: who(), at: firebase.database.ServerValue.TIMESTAMP}); toast('Beweis gespeichert'); }catch(err){ toast(err.message, true); } };
+  $('#chalAdd').onclick = () => { const t = $('#chalNew').value.trim(); if(!t) return; R('challenges/' + uid()).set({text: t, done: false, order: Date.now()}); };
+  $('#wallAdd').onclick = () => $('#wallFile').click();
+  $('#wallFile').onchange = async e => { const files = Array.from(e.target.files); if(!files.length) return; toast(`${files.length} Foto${files.length===1?'':'s'} werden hochgeladen …`); for(const f of files){ try{ const img = await compressImage(f, 1000); await R('wall/' + uid()).set({img, by: who(), at: firebase.database.ServerValue.TIMESTAMP}); }catch(err){ toast(err.message, true); } } toast('Fotos sind drin'); };
+  main.querySelectorAll('[data-wdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('wall/' + b.dataset.wdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
+  $('#songAdd').onclick = () => { const t = $('#songT').value.trim(); if(!t) return; R('songs/' + uid()).set({title: t, artist: $('#songA').value.trim(), by: who(), at: firebase.database.ServerValue.TIMESTAMP}); };
+  main.querySelectorAll('[data-sdel]').forEach(b => b.onclick = () => R('songs/' + b.dataset.sdel).remove());
+  $('#pollAdd').onclick = () => { const q = $('#pollQ').value.trim(), o = $('#pollO').value.split(',').map(x => x.trim()).filter(Boolean); if(!q || o.length < 2) return toast('Frage und mindestens zwei Antworten eintragen.', true); R('polls/' + uid()).set({q, options: o, votes: {}, at: firebase.database.ServerValue.TIMESTAMP}); };
+  main.querySelectorAll('[data-vote]').forEach(o => o.onclick = () => { const pl = D.polls[o.dataset.vote]; if(!pl || pl.closed) return; R('polls/' + o.dataset.vote + '/votes/' + DEVICE).set(+o.dataset.i); });
+  main.querySelectorAll('[data-pclose]').forEach(b => b.onclick = () => R('polls/' + b.dataset.pclose + '/closed').set(!(D.polls[b.dataset.pclose]||{}).closed));
+  main.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => R('polls/' + b.dataset.pdel).remove());
+}
+
+/* ---------- Orga: Kasse, Einkaufsliste, Teilnehmer, Tennis ---------- */
+const eur = n => (Math.round(n*100)/100).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €';
+function settlement(){
+  const people = peopleList(); if(!people.length) return {bal: [], moves: []};
+  const bal = {}; people.forEach(p => bal[p.name] = 0);
+  const ex = Object.values(D.expenses);
+  for(const e of ex){ const amt = +e.amount || 0; if(!amt) continue; const sharers = (e.forAll === false && e.for && e.for.length) ? e.for : people.map(p => p.name); if(!(e.payer in bal)) bal[e.payer] = 0; bal[e.payer] += amt; sharers.forEach(n => { if(!(n in bal)) bal[n] = 0; bal[n] -= amt / sharers.length; }); }
+  const cred = Object.entries(bal).filter(([,v]) => v > 0.005).map(([n,v]) => ({n, v})).sort((a,b) => b.v - a.v);
+  const debt = Object.entries(bal).filter(([,v]) => v < -0.005).map(([n,v]) => ({n, v: -v})).sort((a,b) => b.v - a.v);
+  const moves = []; let i = 0, j = 0;
+  while(i < debt.length && j < cred.length){ const m = Math.min(debt[i].v, cred[j].v); moves.push({from: debt[i].n, to: cred[j].n, amt: m}); debt[i].v -= m; cred[j].v -= m; if(debt[i].v < 0.005) i++; if(cred[j].v < 0.005) j++; }
+  return {bal: Object.entries(bal).map(([n,v]) => ({n, v})).sort((a,b) => b.v - a.v), moves, total: ex.reduce((a,e) => a + (+e.amount||0), 0)};
+}
+function renderOrga(){
+  const people = peopleList();
+  const ex = Object.entries(D.expenses).map(([id,e]) => ({id, ...e})).sort((a,b) => (b.at||0)-(a.at||0));
+  const st = settlement();
+  const shop = Object.entries(D.shopping).map(([id,e]) => ({id, ...e})).sort((a,b) => (a.done?1:0)-(b.done?1:0) || (a.order||0)-(b.order||0));
+  const names = people.map(p => p.name);
+  const tn = D.tennis;
+  main.innerHTML = `${editBtn()}
+    <section class="card stack"><div class="sub-h"><h2>Kasse</h2><span class="muted" style="font-size:13px">${eur(st.total||0)} gesamt</span></div>
+      ${st.moves.length ? `<div class="stack" style="gap:6px">${st.moves.map(m => `<div class="settle"><strong>${esc(m.from)}</strong> zahlt <strong>${eur(m.amt)}</strong> an <strong>${esc(m.to)}</strong></div>`).join('')}</div>` : '<p class="muted">Noch keine Ausgaben. Wer etwas auslegt, trägt es hier ein; die Umlage rechnet sich selbst.</p>'}
+      ${st.bal.length && st.total ? `<details><summary class="muted" style="cursor:pointer;font-size:14px">Saldo je Person</summary><div class="bal" style="margin-top:8px">${st.bal.map(b => `<span>${esc(b.n)}</span><span class="${b.v>0.005?'pos':b.v<-0.005?'neg':''}">${b.v>0?'+':''}${eur(b.v)}</span>`).join('')}</div></details>` : ''}
+      ${ex.length ? `<details ${edit?'open':''}><summary class="muted" style="cursor:pointer;font-size:14px">${ex.length} Ausgabe${ex.length===1?'':'n'}</summary>${ex.map(e => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div class="grow"><strong>${esc(e.desc)}</strong><div class="muted" style="font-size:12px">${esc(e.payer)} · ${e.forAll === false && e.for ? 'für ' + esc(e.for.join(', ')) : 'für alle'}</div></div><strong style="font-variant-numeric:tabular-nums">${eur(+e.amount||0)}</strong>${edit ? `<button class="btn small danger" data-edel="${e.id}">✕</button>` : ''}</div>`).join('')}</details>` : ''}
+      <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="eyebrow">Ausgabe eintragen</span>
+        <div class="editrow"><input type="text" id="exDesc" placeholder="Wofür, z. B. Bus" maxlength="60"><input type="number" inputmode="decimal" step="0.01" id="exAmt" placeholder="Betrag in €"></div>
+        <div class="editrow"><select id="exPayer">${names.map(n => `<option ${n===ME?'selected':''}>${esc(n)}</option>`).join('')}${names.length ? '' : '<option>Erst Teilnehmer eintragen</option>'}</select><select id="exFor"><option value="all">für alle</option><option value="some">nur für bestimmte …</option></select></div>
+        <div class="row" id="exForList" hidden>${names.map(n => `<label class="btn small" style="cursor:pointer"><input type="checkbox" data-exfor="${esc(n)}" style="accent-color:var(--pine)"> ${esc(n)}</label>`).join('')}</div>
+        <div><button class="btn primary small" id="exAdd" ${names.length?'':'disabled'}>+ Ausgabe</button></div></div>
+    </section>
+    <section class="card stack"><div class="sub-h"><h2>Einkaufs- und Packliste</h2><span class="muted" style="font-size:13px">${shop.filter(x => x.done).length} von ${shop.length} erledigt</span></div>
+      ${shop.map(x => `<div class="check ${x.done?'done':''}"><input type="checkbox" data-sdone="${x.id}" ${x.done?'checked':''}><div><div class="txt">${esc(x.text)}</div>${x.who ? `<div class="who">${esc(x.who)}</div>` : ''}</div><div class="row">${!x.who && !x.done ? `<button class="btn small" data-stake="${x.id}">Ich bring's</button>` : ''}${edit ? `<button class="btn small danger" data-shdel="${x.id}">✕</button>` : ''}</div></div>`).join('')}
+      <div class="row"><input type="text" id="shopNew" class="grow" placeholder="Neuer Punkt" maxlength="80"><button class="btn primary" id="shopAdd">+</button></div>
+    </section>
+    <section class="card stack"><div class="sub-h"><h2>Teilnehmer</h2><span class="muted" style="font-size:13px">${people.length} Personen</span></div>
+      ${people.map(p => edit ? `<div class="editrow" style="padding:6px 0;border-top:1px solid var(--line)"><input type="text" data-person="${p.id}" data-k="name" value="${esc(p.name||'')}" placeholder="Name"><input type="text" data-person="${p.id}" data-k="phone" value="${esc(p.phone||'')}" placeholder="Handy" inputmode="tel"><input type="text" data-person="${p.id}" data-k="bed" value="${esc(p.bed||'')}" placeholder="Zimmer / Bett"><div class="row"><input type="text" class="grow" data-person="${p.id}" data-k="note" value="${esc(p.note||'')}" placeholder="Essen, Allergien, Hinweise"><button class="btn small danger" data-pdel2="${p.id}">✕</button></div></div>`
+        : `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div class="grow"><strong>${esc(p.name)}</strong>${p.bed ? ` <span class="muted">· ${esc(p.bed)}</span>` : ''}${p.note ? `<div class="muted" style="font-size:13px">${esc(p.note)}</div>` : ''}</div>${p.phone ? `<span style="font-variant-numeric:tabular-nums;user-select:all">${esc(p.phone)}</span>` : ''}</div>`).join('') || '<p class="muted">Noch niemand eingetragen.</p>'}
+      <div class="row"><input type="text" id="personNew" class="grow" placeholder="Name" maxlength="20"><button class="btn primary" id="personAdd">+</button></div>
+      <p class="muted" style="font-size:13px">Handynummer, Bett und Essenswünsche über „Bearbeiten“ ergänzen.</p>
+    </section>
+    <section class="card stack"><div class="sub-h"><h2>Tennis</h2><span class="muted" style="font-size:13px">Freitag, 2,5 Stunden</span></div>
+      ${tn && tn.courts ? `<div class="stack" style="gap:8px">${tn.courts.map((c,i) => `<div class="settle"><strong>Platz ${i+1}</strong>: ${esc(c[0]||'')} &amp; ${esc(c[1]||'')} <span class="muted">gegen</span> ${esc(c[2]||'')} &amp; ${esc(c[3]||'')}</div>`).join('')}${tn.rest && tn.rest.length ? `<div class="muted" style="font-size:14px">Pause / Wechsel: ${esc(tn.rest.join(', '))}</div>` : ''}</div>
+        <p class="muted" style="font-size:13px">Nach jeder Runde neu auslosen, dann wechseln die Doppel.</p><div class="row"><button class="btn amber small" id="tennisDraw">Neu auslosen</button></div>`
+      : `<p class="muted">Doppel-Paarungen werden aus der Teilnehmerliste ausgelost (4 pro Platz).</p><div class="row"><label class="field" style="width:120px">Plätze<select id="tennisCourts"><option>1</option><option>2</option><option>3</option><option selected>4</option></select></label><button class="btn amber" id="tennisDraw" ${people.length >= 4 ? '' : 'disabled'}>Doppel auslosen</button></div>`}
+    </section>`;
+  wireEdit();
+  $('#exFor').onchange = () => { $('#exForList').hidden = $('#exFor').value !== 'some'; };
+  $('#exAdd').onclick = () => { const desc = $('#exDesc').value.trim(), amount = parseFloat(String($('#exAmt').value).replace(',', '.')); if(!desc || !(amount > 0)) return toast('Beschreibung und Betrag eintragen.', true);
+    const some = $('#exFor').value === 'some'; const forList = Array.from(main.querySelectorAll('[data-exfor]:checked')).map(c => c.dataset.exfor); if(some && !forList.length) return toast('Für wen? Mindestens eine Person anhaken.', true);
+    R('expenses/' + uid()).set({desc, amount, payer: $('#exPayer').value, forAll: !some, for: some ? forList : null, at: firebase.database.ServerValue.TIMESTAMP}).then(() => toast('Eingetragen')).catch(e => toast(e.message, true)); };
+  main.querySelectorAll('[data-edel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('expenses/' + b.dataset.edel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
+  main.querySelectorAll('[data-sdone]').forEach(c => c.onchange = () => R('shopping/' + c.dataset.sdone + '/done').set(c.checked));
+  main.querySelectorAll('[data-stake]').forEach(b => b.onclick = () => R('shopping/' + b.dataset.stake + '/who').set(who()));
+  main.querySelectorAll('[data-shdel]').forEach(b => b.onclick = () => R('shopping/' + b.dataset.shdel).remove());
+  $('#shopAdd').onclick = () => { const t = $('#shopNew').value.trim(); if(!t) return; R('shopping/' + uid()).set({text: t, who: '', done: false, order: Date.now()}); };
+  $('#personAdd').onclick = () => { const n = $('#personNew').value.trim(); if(!n) return; if(people.some(p => (p.name||'').toLowerCase() === n.toLowerCase())) return toast('Gibt es schon.', true); R('people/' + uid()).set({name: n, at: firebase.database.ServerValue.TIMESTAMP}); };
+  main.querySelectorAll('[data-person]').forEach(inp => inp.oninput = () => { const p = 'people/' + inp.dataset.person + '/' + inp.dataset.k; saveSoon(p, p, inp.value.trim()); });
+  main.querySelectorAll('[data-pdel2]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('people/' + b.dataset.pdel2).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
+  if($('#tennisDraw')) $('#tennisDraw').onclick = () => {
+    const n = [...names]; for(let i = n.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [n[i], n[j]] = [n[j], n[i]]; }
+    const courts = Math.min(+($('#tennisCourts') ? $('#tennisCourts').value : (tn && tn.courts ? tn.courts.length : 4)), Math.floor(n.length/4));
+    if(courts < 1) return toast('Mindestens 4 Teilnehmer nötig.', true);
+    const out = []; for(let c = 0; c < courts; c++) out.push(n.slice(c*4, c*4+4));
+    R('tennis').set({courts: out, rest: n.slice(courts*4), at: firebase.database.ServerValue.TIMESTAMP});
+  };
 }
 
 /* ---------- Hütte: Bilder und Infos ---------- */

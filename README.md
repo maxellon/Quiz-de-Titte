@@ -35,3 +35,5 @@ Im Editor nimmt „Fotos oder Clips hinzufügen“ auch MP4-Dateien (max. 1,5 MB
 
 Clips vorbereiten (ffmpeg, ergibt ca. 0,5–1 MB für 6 Sekunden):
 `ffmpeg -i clip.mov -ss 0 -t 6 -vf "scale=-2:480,fps=25" -an -c:v libx264 -crf 28 -preset slow -movflags +faststart clip.mp4`
+
+Weitere Reiter: **Spaß** (Gesamtwertung über Quiz/Bierpong/Tennis/Aufgaben, Aufgaben für Ferdi mit Beweisfoto, Fotowand, Playlist-Wünsche, Umfragen mit Live-Ergebnis) und **Orga** (Kasse mit automatischer Umlage, Einkaufs-/Packliste, Teilnehmer mit Handy/Bett/Essen, Tennis-Doppel auslosen). Im Plan: Jetzt-Kachel mit Countdown zum nächsten Punkt und Wetter Innsbruck (Open-Meteo, ab ca. 16 Tage vorher). „Ich bin …“ oben rechts merkt den Namen pro Handy für Fotos, Stimmen und Ausgaben.
