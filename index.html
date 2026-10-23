@@ -398,6 +398,7 @@ function hostStartDialog(){
         state: {phase: 'lobby', q: -1, seconds: +$('#secs').value, total: questions.length, warmup: true},
       });
       cleanupOldGames();
+      db.ref('jga/quiz/current').set({code, title: q.title || 'Quiz', at: firebase.database.ServerValue.TIMESTAMP}).catch(()=>{});
       H.code = code; H.questions = questions; H.warmup = warmup; ss.set('fq-host-game', code);
       hostGame();
     }catch(err){ hostToast('Firebase antwortet nicht: ' + err.message, true); $('#go').disabled = false; }

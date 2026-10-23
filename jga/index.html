@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>JGA Ferdi · Innsbruck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Rubik:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Layout: Hero mit Hüttenfoto, darunter Tab-Leiste und eine Spalte Inhalt (max 720px). Alpin: Tannengrün, Amber, Schnee. */
+:root{
+  --bg:#F3F5F2; --surface:#FFFFFF; --ink:#16231B; --muted:#5E6E63; --line:#D5DDD6; --soft:#E6ECE6;
+  --pine:#1E5A3C; --pine-ink:#FFFFFF; --amber:#E6A117; --amber-ink:#1B1A14;
+  --ok:#1E8A5A; --bad:#C23B3B; --a:#E2553E; --b:#2F6FED;
+  --display:"Bricolage Grotesque","Rubik",system-ui,sans-serif;
+  --body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121914; --surface:#1A231C; --ink:#EDF2EC; --muted:#9BAA9F; --line:#2B3A2F; --soft:#223027;
+  --pine:#2E7A52; --amber:#F2B23A; --ok:#3FBF86; --bad:#E06060; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#121914; --surface:#1A231C; --ink:#EDF2EC; --muted:#9BAA9F; --line:#2B3A2F; --soft:#223027;
+  --pine:#2E7A52; --amber:#F2B23A; --ok:#3FBF86; --bad:#E06060; color-scheme:dark;}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;padding-bottom:env(safe-area-inset-bottom,0px)}
+img{max-width:100%;display:block}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--display);line-height:1.1;margin:0;text-wrap:balance}
+h1{font-size:clamp(30px,7vw,48px);font-weight:800}
+h2{font-size:clamp(20px,4vw,26px);font-weight:800}
+h3{font-size:17px;font-weight:700}
+p{margin:0}
+.muted{color:var(--muted)}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+
+.hero{position:relative;min-height:230px;background:var(--pine);color:#fff;display:flex;align-items:flex-end;overflow:hidden;padding-top:env(safe-area-inset-top,0px)}
+.hero .bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.55}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05) 0%,rgba(10,30,20,.75) 100%)}
+.hero .in{position:relative;width:100%;max-width:720px;margin:0 auto;padding-block:28px 18px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:6px}
+.hero .in .eyebrow{color:rgba(255,255,255,.8)}
+.hero .count{font-family:var(--display);font-weight:800;font-size:15px;color:var(--amber)}
+.tabs{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+.tabs .in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.tab{appearance:none;border:0;background:none;padding:12px 4px 10px;font-weight:700;font-size:13px;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--pine);border-bottom-color:var(--amber)}
+.tab:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+main{max-width:720px;margin:0 auto;padding-block:18px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:12px}
+.grow{flex:1 1 160px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-weight:500;cursor:pointer;line-height:1.2}
+.btn.primary{background:var(--pine);color:var(--pine-ink);border-color:var(--pine)}
+.btn.amber{background:var(--amber);color:var(--amber-ink);border-color:var(--amber)}
+.btn.small{padding:6px 10px;font-size:14px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:default}
+input[type=text],input[type=number],input[type=time],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+textarea{min-height:90px;resize:vertical}
+label.field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:500;color:var(--muted)}
+.notice{padding:10px 14px;border-radius:10px;background:var(--soft);font-size:14px}
+.notice.err{background:color-mix(in srgb,var(--bad) 14%,var(--surface));color:var(--bad)}
+.edit-toggle{display:flex;justify-content:flex-end}
+
+/* Zeitplan */
+.day{display:flex;flex-direction:column;gap:10px}
+.day h2{display:flex;align-items:baseline;gap:10px}
+.day h2 span{font-family:var(--body);font-weight:400;font-size:15px;color:var(--muted)}
+.item{display:grid;grid-template-columns:72px 1fr;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.item .t{font-family:var(--display);font-weight:800;font-size:17px;color:var(--pine);font-variant-numeric:tabular-nums}
+.item .t small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted)}
+.item .title{font-weight:700}
+.item .place{font-size:14px}
+.item .place a{color:var(--pine);font-weight:500}
+.item .note{font-size:14px;color:var(--muted);margin-top:2px}
+.item.now{background:color-mix(in srgb,var(--amber) 14%,var(--surface));margin:0 -16px;padding-inline:16px;border-radius:10px;border-top:0}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--amber);color:var(--amber-ink);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle;margin-left:6px}
+.editrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (max-width:480px){.editrow{grid-template-columns:1fr}}
+
+/* Karte */
+#map{height:min(70vh,520px);border-radius:14px;border:1px solid var(--line);background:var(--soft);z-index:0}
+.legend{display:flex;flex-wrap:wrap;gap:8px}
+.legend .btn{font-size:14px}
+.leaflet-container{font-family:var(--body)}
+
+/* Turnier */
+.groups{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.groups{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+td.n,th.n{text-align:right;width:34px}
+tr.q td:first-child{font-weight:700}
+tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
+.game{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line);cursor:pointer}
+.game:first-child{border-top:0}
+.game .tm{min-width:0;overflow-wrap:anywhere}
+.game .tm.w{font-weight:700}
+.game .tm.r{text-align:right}
+.game .sc{font-family:var(--display);font-weight:800;font-size:18px;padding:4px 10px;border-radius:8px;background:var(--soft);white-space:nowrap;font-variant-numeric:tabular-nums}
+.game .sc.open{background:color-mix(in srgb,var(--amber) 25%,var(--surface));color:var(--ink);font-size:13px;font-family:var(--body);font-weight:700}
+.game .sub{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.scoreform{grid-column:1/-1;display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:8px 0 4px}
+.scoreform input{text-align:center;font-family:var(--display);font-weight:800;font-size:22px}
+.bracket{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.bracket{grid-template-columns:1fr}}
+.champ{text-align:center;padding:18px;border-radius:14px;background:var(--pine);color:#fff}
+.champ .name{font-family:var(--display);font-weight:800;font-size:clamp(24px,6vw,34px)}
+.teamedit{display:grid;grid-template-columns:40px 1fr 1fr 1fr;gap:6px;align-items:center}
+@media (max-width:560px){.teamedit{grid-template-columns:40px 1fr}}
+.teamedit .no{font-family:var(--display);font-weight:800;color:var(--muted)}
+
+/* Quiz */
+.live{border:2px solid var(--amber)}
+.code{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:.16em}
+
+/* Bilder */
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.gallery figure{margin:0;position:relative;border-radius:12px;overflow:hidden;background:var(--soft)}
+.gallery img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.gallery figcaption{font-size:13px;padding:6px 8px}
+.gallery .acts{position:absolute;top:6px;right:6px;display:flex;gap:4px}
+.gallery .acts .btn{padding:4px 8px;font-size:12px;background:rgba(255,255,255,.9);color:#16231B;border:0}
+.gallery figure.hero-pick{outline:3px solid var(--amber)}
+.infoblock h3{margin-bottom:4px}
+.infoblock .txt{white-space:pre-wrap;font-size:15px}
+.infoblock .txt a{color:var(--pine)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="hero" id="hero">
+  <div class="bg" id="heroBg"></div><div class="shade"></div>
+  <div class="in">
+    <span class="eyebrow">Junggesellenabschied</span>
+    <h1>JGA Ferdi · Innsbruck</h1>
+    <p>6. bis 8. Mai 2027 · Hütte, Bierpong, Tennis, Kneipentour</p>
+    <span class="count" id="countdown"></span>
+  </div>
+</header>
+<nav class="tabs"><div class="in" id="tabs">
+  <button class="tab on" data-tab="plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Plan</button>
+  <button class="tab" data-tab="map"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Karte</button>
+  <button class="tab" data-tab="tour"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 12v4M8 20h8M9 16h6"/></svg>Bierpong</button>
+  <button class="tab" data-tab="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"/></svg>Quiz</button>
+  <button class="tab" data-tab="info"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg>Hütte</button>
+</div></nav>
+<main id="main"></main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyACL_u2I8L2PaHwUtEaA99EZ9iXBZ3Pol4",
+  authDomain: "quiz-de-titte.firebaseapp.com",
+  databaseURL: "https://quiz-de-titte-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "quiz-de-titte",
+  storageBucket: "quiz-de-titte.firebasestorage.app",
+  messagingSenderId: "974674806041",
+  appId: "1:974674806041:web:5c1e39f4239b588da0f188"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+const R = p => db.ref('jga/' + p);
+
+/* ---------- Hilfen ---------- */
+const $ = s => document.querySelector(s);
+const main = $('#main');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const linkify = s => esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36);
+const ls = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
+const mapsLink = (q, lat, lng) => lat && lng ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+function toast(msg, err){ let n = $('#toast'); if(!n){ n = document.createElement('div'); n.id = 'toast'; n.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:50;max-width:90vw'; document.body.appendChild(n); } n.innerHTML = `<div class="notice ${err?'err':''}" style="box-shadow:0 6px 24px rgba(0,0,0,.25)">${esc(msg)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => { n.innerHTML = ''; }, 3500); }
+function compressImage(file, max){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => { let w = img.width, h = img.height; if(w > h && w > max){ h = Math.round(h*max/w); w = max; } else if(h >= w && h > max){ w = Math.round(w*max/h); h = max; }
+      const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(img,0,0,w,h);
+      let q = .8, out = c.toDataURL('image/jpeg', q); while(out.length > 260000 && q > .4){ q -= .1; out = c.toDataURL('image/jpeg', q); }
+      URL.revokeObjectURL(url); resolve(out); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Bild konnte nicht gelesen werden')); }; img.src = url; });
+}
+
+/* ---------- Daten (live) ---------- */
+const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {} };
+let tab = ls.get('jga-tab', 'plan'), edit = false, openGame = null, editItem = null;
+const DAYS = [['do','Donnerstag','6. Mai'],['fr','Freitag','7. Mai'],['sa','Samstag','8. Mai']];
+const SEED_SCHEDULE = [
+  {day:'do', time:'08:30', title:'Treffpunkt', place:'Park-and-Ride Oberesslingen', addr:'P+R Bahnhof Oberesslingen, Esslingen am Neckar', note:''},
+  {day:'do', time:'09:00', title:'Zu Fuß zum Frühstück', place:'Frühstückslocation', addr:'', note:'Frühstück bis ca. 11 Uhr'},
+  {day:'do', time:'11:00', title:'Bustransfer nach Innsbruck', place:'Bus ab Oberesslingen', addr:'', note:'ca. 4 bis 5 Stunden. Quiz-Runden im Bus!'},
+  {day:'do', time:'16:30', title:'Ankunft in der Hütte', place:'Unsere Hütte', addr:'', note:'ca. 16:30 bis 17 Uhr'},
+  {day:'do', time:'19:00', title:'Bierpong-Turnier, Party, Open End', place:'Hütte', addr:'', note:'Turnierbaum unter „Bierpong“'},
+  {day:'fr', time:'10:00', title:'Frühstück', place:'Hütte', addr:'', note:''},
+  {day:'fr', time:'12:00', title:'Aufbruch nach Innsbruck', place:'S-Bahn', addr:'', note:'ca. 20 Minuten mit der S-Bahn'},
+  {day:'fr', time:'13:00', title:'Gemeinsames Mittagessen', place:'Innsbruck', addr:'', note:''},
+  {day:'fr', time:'15:00', title:'Tennis', place:'Tennishalle', addr:'', note:'2,5 Stunden'},
+  {day:'fr', time:'19:00', title:'Gemeinsames Abendessen', place:'Innsbruck', addr:'', note:''},
+  {day:'fr', time:'21:00', title:'Kneipentour', place:'Innsbruck Altstadt', addr:'Altstadt, Innsbruck', note:'', lat:47.2685, lng:11.3933},
+  {day:'sa', time:'10:00', title:'Abfahrt ab Innsbruck, Heimfahrt', place:'Innsbruck', addr:'', note:''},
+];
+const SEED_INFO = [
+  {title:'Hütte', text:'Adresse, Zufahrt, Schlüsselübergabe, WLAN: hier eintragen.'},
+  {title:'Mitbringen', text:'Hausschuhe, Handtuch, Tennisschläger (falls vorhanden), Sportklamotten, Bargeld für die Kneipentour, Powerbank.'},
+  {title:'Wichtige Nummern', text:'Organisation: Max\nNotruf Österreich: 112'},
+];
+let seeded = false;
+R('schedule').on('value', s => { D.schedule = s.val() || {}; if(!seeded && !s.exists()){ seeded = true; const u = {}; SEED_SCHEDULE.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('schedule').set(u); } render(); });
+R('teams').on('value', s => { D.teams = s.val() || {}; render(); });
+R('results').on('value', s => { D.results = s.val() || {}; render(); });
+R('quiz').on('value', s => { D.quiz = s.val() || {}; render(); });
+R('photos').on('value', s => { D.photos = s.val() || {}; render(); applyHero(); });
+R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); } render(); });
+R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); });
+
+function applyHero(){
+  const id = D.settings.heroPhoto; const ph = id && D.photos[id] ? D.photos[id] : Object.values(D.photos).sort((a,b) => (a.at||0)-(b.at||0))[0];
+  $('#heroBg').style.backgroundImage = ph ? `url(${ph.img})` : '';
+}
+function countdown(){
+  const start = new Date('2027-05-06T08:30:00+02:00'), end = new Date('2027-05-08T14:00:00+02:00'), n = new Date();
+  const el = $('#countdown'); if(n < start){ const d = Math.ceil((start - n)/86400000); el.textContent = d === 1 ? 'Morgen geht es los!' : `Noch ${d} Tage`; } else if(n < end) el.textContent = 'Es läuft!'; else el.textContent = 'Das war der JGA. Danke an alle!';
+}
+countdown(); setInterval(countdown, 60000);
+
+/* ---------- Tabs ---------- */
+$('#tabs').onclick = e => { const b = e.target.closest('.tab'); if(!b) return; tab = b.dataset.tab; ls.set('jga-tab', tab); edit = false; openGame = null; editItem = null; render(); };
+function render(){
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  ({plan: renderPlan, map: renderMap, tour: renderTour, quiz: renderQuiz, info: renderInfo})[tab]();
+}
+const editBtn = (label='Bearbeiten') => `<div class="edit-toggle"><button class="btn small" id="editToggle">${edit ? 'Fertig' : label}</button></div>`;
+function wireEdit(){ const b = $('#editToggle'); if(b) b.onclick = () => { edit = !edit; editItem = null; render(); }; }
+
+/* ---------- Zeitplan ---------- */
+function renderPlan(){
+  const items = Object.entries(D.schedule).map(([id,it]) => ({id, ...it})).sort((a,b) => DAYS.findIndex(d=>d[0]===a.day) - DAYS.findIndex(d=>d[0]===b.day) || (a.time||'').localeCompare(b.time||'') || (a.order||0)-(b.order||0));
+  const now = new Date(); const nowKey = ['2027-05-06','2027-05-07','2027-05-08'].indexOf(now.toISOString().slice(0,10)); const hhmm = now.toTimeString().slice(0,5);
+  let currentId = null;
+  if(nowKey >= 0){ const todays = items.filter(it => it.day === DAYS[nowKey][0] && it.time <= hhmm); if(todays.length) currentId = todays[todays.length-1].id; }
+  let html = editBtn();
+  for(const [key, name, date] of DAYS){
+    const list = items.filter(it => it.day === key);
+    html += `<section class="card day"><h2>${name} <span>${date}</span></h2>${list.map(it => it.id === editItem ? itemForm(it) : `
+      <div class="item ${it.id===currentId?'now':''}">
+        <div class="t">${esc(it.time || '')}${it.id===currentId?'<small>jetzt</small>':''}</div>
+        <div>
+          <div class="title">${esc(it.title)}${edit ? ` <button class="btn small" data-edit="${it.id}">Ändern</button>` : ''}</div>
+          ${it.place || it.addr ? `<div class="place">${esc(it.place || '')}${it.addr || it.lat ? ` · <a href="${mapsLink(it.addr || it.place, it.lat, it.lng)}" target="_blank" rel="noopener">Route</a>` : ''}</div>` : ''}
+          ${it.note ? `<div class="note">${linkify(it.note)}</div>` : ''}
+        </div>
+      </div>`).join('') || '<p class="muted">Noch nichts geplant.</p>'}
+      ${edit ? `<div><button class="btn small primary" data-add="${key}">+ Programmpunkt</button></div>` : ''}
+    </section>`;
+  }
+  main.innerHTML = html; wireEdit();
+  main.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editItem = b.dataset.edit; render(); });
+  main.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const id = uid(); R('schedule/' + id).set({day: b.dataset.add, time:'12:00', title:'Neuer Programmpunkt', place:'', addr:'', note:'', order: 99}); editItem = id; });
+  wireItemForm();
+}
+function itemForm(it){
+  return `<div class="item" style="grid-template-columns:1fr"><div class="stack" data-form="${it.id}">
+    <div class="editrow"><label class="field">Tag<select id="f-day"><option value="do" ${it.day==='do'?'selected':''}>Donnerstag</option><option value="fr" ${it.day==='fr'?'selected':''}>Freitag</option><option value="sa" ${it.day==='sa'?'selected':''}>Samstag</option></select></label>
+    <label class="field">Uhrzeit<input type="time" id="f-time" value="${esc(it.time||'')}"></label></div>
+    <label class="field">Titel<input type="text" id="f-title" value="${esc(it.title||'')}"></label>
+    <div class="editrow"><label class="field">Ort<input type="text" id="f-place" value="${esc(it.place||'')}"></label>
+    <label class="field">Adresse (für Route und Karte)<input type="text" id="f-addr" value="${esc(it.addr||'')}" placeholder="Straße, Ort"></label></div>
+    <label class="field">Hinweis<textarea id="f-note">${esc(it.note||'')}</textarea></label>
+    <div class="row between"><div class="row"><button class="btn primary" id="f-save">Speichern</button><button class="btn" id="f-cancel">Abbrechen</button><button class="btn" id="f-geo" title="Adresse auf der Karte finden">${it.lat ? 'Auf Karte ✓' : 'Auf Karte setzen'}</button></div><button class="btn danger" id="f-del">Löschen</button></div>
+  </div></div>`;
+}
+function wireItemForm(){
+  const f = main.querySelector('[data-form]'); if(!f) return; const id = f.dataset.form;
+  const read = () => ({day: $('#f-day').value, time: $('#f-time').value, title: $('#f-title').value.trim() || 'Programmpunkt', place: $('#f-place').value.trim(), addr: $('#f-addr').value.trim(), note: $('#f-note').value.trim()});
+  $('#f-save').onclick = () => { R('schedule/' + id).update(read()).then(() => { editItem = null; render(); }).catch(e => toast(e.message, true)); };
+  $('#f-cancel').onclick = () => { editItem = null; render(); };
+  $('#f-del').onclick = () => { if($('#f-del').dataset.armed){ R('schedule/' + id).remove(); editItem = null; return; } $('#f-del').dataset.armed = 1; $('#f-del').textContent = 'Wirklich löschen?'; };
+  $('#f-geo').onclick = async () => {
+    const q = $('#f-addr').value.trim() || $('#f-place').value.trim(); if(!q) return toast('Erst eine Adresse eintragen.', true);
+    $('#f-geo').disabled = true; $('#f-geo').textContent = 'Suche …';
+    try{ const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q), {headers:{'Accept-Language':'de'}}); const j = await r.json();
+      if(!j.length) throw new Error('Adresse nicht gefunden. Genauer eintragen (Straße, PLZ, Ort).');
+      await R('schedule/' + id).update({...read(), lat: +j[0].lat, lng: +j[0].lon}); toast('Auf der Karte: ' + j[0].display_name.split(',').slice(0,2).join(',')); $('#f-geo').textContent = 'Auf Karte ✓';
+    }catch(e){ toast(e.message, true); $('#f-geo').textContent = 'Auf Karte setzen'; }
+    $('#f-geo').disabled = false;
+  };
+}
+
+/* ---------- Karte ---------- */
+let map = null, markers = [];
+function renderMap(){
+  const pts = Object.entries(D.schedule).map(([id,it]) => ({id, ...it})).filter(it => it.lat && it.lng);
+  if(!$('#map')){
+    main.innerHTML = `<p class="muted">Orte aus dem Zeitplan. Adresse beim Programmpunkt eintragen und „Auf Karte setzen“ drücken, dann erscheint der Punkt hier.</p><div id="map"></div><div class="legend" id="legend"></div><p class="muted" style="font-size:12px">Karte: © OpenStreetMap-Mitwirkende</p>`;
+    map = L.map('map', {scrollWheelZoom:false}).setView([47.2692, 11.4041], 12);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(map);
+  }
+  markers.forEach(m => m.remove()); markers = [];
+  pts.forEach(it => { const m = L.marker([it.lat, it.lng]).addTo(map).bindPopup(`<strong>${esc(it.title)}</strong><br>${esc(it.place||'')}<br><a href="${mapsLink(it.addr||it.place, it.lat, it.lng)}" target="_blank" rel="noopener">Route</a>`); markers.push(m); });
+  if(pts.length) map.fitBounds(L.latLngBounds(pts.map(p => [p.lat, p.lng])).pad(0.3), {maxZoom: 14});
+  $('#legend').innerHTML = pts.map((it,i) => `<button class="btn small" data-pt="${i}">${esc(it.title)}</button>`).join('') || '';
+  main.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => { const m = markers[+b.dataset.pt]; map.setView(m.getLatLng(), 15); m.openPopup(); });
+  setTimeout(() => map.invalidateSize(), 50);
+}
+
+/* ---------- Bierpong-Turnier ---------- */
+const TEAM_IDS = [1,2,3,4,5,6,7,8];
+const GROUPS = {A:[1,2,3,4], B:[5,6,7,8]};
+const GROUP_GAMES = {A:[['A1',1,2],['A2',3,4],['A3',1,3],['A4',2,4],['A5',1,4],['A6',2,3]], B:[['B1',5,6],['B2',7,8],['B3',5,7],['B4',6,8],['B5',5,8],['B6',6,7]]};
+const teamName = i => (D.teams[i] && D.teams[i].name) || `Team ${i}`;
+const teamSub = i => { const t = D.teams[i] || {}; return [t.p1, t.p2].filter(Boolean).join(' & '); };
+function result(gid){ const r = D.results[gid]; if(!r || r.a == null || r.b == null || r.a === r.b) return null; return r; }
+function standings(g){
+  const st = {}; GROUPS[g].forEach(i => st[i] = {i, w:0, l:0, pf:0, pa:0});
+  GROUP_GAMES[g].forEach(([gid,a,b]) => { const r = result(gid); if(!r) return; st[a].pf += r.a; st[a].pa += r.b; st[b].pf += r.b; st[b].pa += r.a; if(r.a > r.b){ st[a].w++; st[b].l++; } else { st[b].w++; st[a].l++; } });
+  return Object.values(st).sort((x,y) => y.w - x.w || (y.pf-y.pa) - (x.pf-x.pa) || y.pf - x.pf || x.i - y.i);
+}
+function groupDone(g){ return GROUP_GAMES[g].every(([gid]) => result(gid)); }
+function koTeams(){
+  const A = standings('A'), B = standings('B'), ok = groupDone('A') && groupDone('B');
+  const s1 = ok ? [A[0].i, B[1].i] : [null,null], s2 = ok ? [B[0].i, A[1].i] : [null,null];
+  const r1 = result('S1'), r2 = result('S2');
+  const win = (t, r) => r ? (r.a > r.b ? t[0] : t[1]) : null, lose = (t, r) => r ? (r.a > r.b ? t[1] : t[0]) : null;
+  return {s1, s2, f: [win(s1,r1), win(s2,r2)], p3: [lose(s1,r1), lose(s2,r2)]};
+}
+function gameRow(gid, a, b, label){
+  const r = D.results[gid], done = result(gid);
+  const nm = i => i ? teamName(i) : '<span class="muted">offen</span>';
+  const open = openGame === gid;
+  return `<div class="game" data-game="${gid}" ${a&&b?'':'style="cursor:default"'}>
+    <div class="tm ${done && r.a > r.b ? 'w':''}">${nm(a)}</div>
+    <div class="sc ${done?'':'open'}">${done ? `${r.a} : ${r.b}` : (a&&b ? 'Ergebnis' : '–')}</div>
+    <div class="tm r ${done && r.b > r.a ? 'w':''}">${nm(b)}</div>
+    ${label ? `<div class="sub">${label}</div>` : ''}
+    ${open && a && b ? `<div class="scoreform"><input type="number" inputmode="numeric" min="0" max="20" id="sa" value="${r && r.a != null ? r.a : ''}" placeholder="0"><span class="muted">:</span><input type="number" inputmode="numeric" min="0" max="20" id="sb" value="${r && r.b != null ? r.b : ''}" placeholder="0">
+      <div class="row between" style="grid-column:1/-1"><span class="muted" style="font-size:13px">Getroffene Becher je Team. Höhere Zahl gewinnt.</span><div class="row"><button class="btn small" id="sclear">Leeren</button><button class="btn small primary" id="ssave">Speichern</button></div></div></div>` : ''}
+  </div>`;
+}
+function renderTour(){
+  const ko = koTeams();
+  const fr = result('F'), champ = fr ? (fr.a > fr.b ? ko.f[0] : ko.f[1]) : null;
+  const tbl = g => `<div class="card"><h3>Gruppe ${g}</h3><table><thead><tr><th>Team</th><th class="n">S</th><th class="n">N</th><th class="n">+/−</th></tr></thead><tbody>
+    ${standings(g).map((s,i) => `<tr class="${i<2?'q':''}"><td><span class="nm">${esc(teamName(s.i))}</span><div class="muted" style="font-size:12px;font-weight:400">${esc(teamSub(s.i))}</div></td><td class="n">${s.w}</td><td class="n">${s.l}</td><td class="n">${s.pf-s.pa>0?'+':''}${s.pf-s.pa}</td></tr>`).join('')}
+  </tbody></table><div style="margin-top:8px">${GROUP_GAMES[g].map(([gid,a,b]) => gameRow(gid,a,b)).join('')}</div></div>`;
+  main.innerHTML = `${editBtn('Teams bearbeiten')}
+    ${champ ? `<div class="champ"><span class="eyebrow" style="color:rgba(255,255,255,.8)">Bierpong-Sieger</span><div class="name">${esc(teamName(champ))}</div><div>${esc(teamSub(champ))}</div></div>` : ''}
+    ${edit ? `<div class="card stack"><h3>Teams</h3>${TEAM_IDS.map(i => `<div class="teamedit"><span class="no">${i}</span><input type="text" data-team="${i}" data-k="name" value="${esc((D.teams[i]||{}).name||'')}" placeholder="Team ${i}"><input type="text" data-team="${i}" data-k="p1" value="${esc((D.teams[i]||{}).p1||'')}" placeholder="Spieler 1"><input type="text" data-team="${i}" data-k="p2" value="${esc((D.teams[i]||{}).p2||'')}" placeholder="Spieler 2"></div>`).join('')}<p class="muted" style="font-size:13px">Teams 1 bis 4 sind Gruppe A, 5 bis 8 Gruppe B. Änderungen werden sofort gespeichert.</p>
+      <div class="row"><button class="btn danger" id="resetTour">Alle Ergebnisse löschen</button></div></div>` : ''}
+    <div class="groups">${tbl('A')}${tbl('B')}</div>
+    <p class="muted">Die ersten zwei jeder Gruppe kommen weiter. Halbfinale über Kreuz: Erster A gegen Zweiter B, Erster B gegen Zweiter A.</p>
+    <div class="bracket">
+      <div class="card"><h3>Halbfinale</h3>${gameRow('S1', ko.s1[0], ko.s1[1], '1. Gruppe A – 2. Gruppe B')}${gameRow('S2', ko.s2[0], ko.s2[1], '1. Gruppe B – 2. Gruppe A')}</div>
+      <div class="card"><h3>Finale</h3>${gameRow('F', ko.f[0], ko.f[1])}<h3 style="margin-top:12px">Spiel um Platz 3</h3>${gameRow('P3', ko.p3[0], ko.p3[1])}</div>
+    </div>`;
+  wireEdit();
+  main.querySelectorAll('[data-game]').forEach(g => g.onclick = e => { if(e.target.closest('.scoreform')) return; const gid = g.dataset.game; const [a,b] = findTeams(gid); if(!a || !b) return; openGame = openGame === gid ? null : gid; render(); if(openGame) { const i = $('#sa'); if(i) i.focus(); } });
+  if($('#ssave')) $('#ssave').onclick = () => { const a = +$('#sa').value, b = +$('#sb').value; if($('#sa').value === '' || $('#sb').value === '') return toast('Beide Zahlen eintragen.', true); if(a === b) return toast('Unentschieden gibt es nicht. Wer hat gewonnen?', true); R('results/' + openGame).set({a, b, at: firebase.database.ServerValue.TIMESTAMP}).then(() => { openGame = null; toast('Gespeichert'); }).catch(e => toast(e.message, true)); };
+  if($('#sclear')) $('#sclear').onclick = () => { R('results/' + openGame).remove(); openGame = null; };
+  main.querySelectorAll('[data-team]').forEach(inp => inp.onchange = () => R('teams/' + inp.dataset.team + '/' + inp.dataset.k).set(inp.value.trim()));
+  if($('#resetTour')) $('#resetTour').onclick = () => { const b = $('#resetTour'); if(b.dataset.armed){ R('results').remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich alle Ergebnisse löschen?'; };
+}
+function findTeams(gid){ for(const g of ['A','B']){ const f = GROUP_GAMES[g].find(x => x[0] === gid); if(f) return [f[1], f[2]]; } const ko = koTeams(); return {S1: ko.s1, S2: ko.s2, F: ko.f, P3: ko.p3}[gid] || [null,null]; }
+
+/* ---------- Quiz ---------- */
+const QUIZ_URL = new URL('../', location.href).href;
+function renderQuiz(){
+  const cur = D.quiz.current, list = Object.entries(D.quiz.list || {}).map(([id,q]) => ({id, ...q})).sort((a,b) => (a.order||0)-(b.order||0));
+  const fresh = cur && cur.at && (Date.now() - cur.at) < 6*3600*1000;
+  main.innerHTML = `${editBtn()}
+    ${fresh ? `<div class="card stack live" style="text-align:center"><span class="eyebrow">Gerade läuft</span><h2>${esc(cur.title || 'Quiz')}</h2><div class="code">${esc(cur.code)}</div><a class="btn amber" style="font-size:18px;padding:14px 22px;text-decoration:none;display:inline-block" href="${QUIZ_URL}?join=${esc(cur.code)}">Mitspielen</a></div>`
+      : `<div class="card stack" style="text-align:center"><h2>Gerade läuft kein Quiz</h2><p class="muted">Sobald Max ein Quiz startet, erscheint hier der Code zum Mitspielen.</p><a class="btn" style="text-decoration:none;display:inline-block" href="${QUIZ_URL}?spieler">Code selbst eingeben</a></div>`}
+    <div class="card stack"><h3>Quiz-Runden</h3>
+      ${list.map(q => `<div class="row between"><div class="grow"><strong>${esc(q.title)}</strong>${q.note ? `<div class="muted" style="font-size:14px">${esc(q.note)}</div>` : ''}</div>${edit ? `<button class="btn small danger" data-qdel="${q.id}">✕</button>` : (q.done ? '<span class="muted">gespielt</span>' : '')}</div>`).join('') || '<p class="muted">Noch keine Runden angekündigt.</p>'}
+      ${edit ? `<div class="editrow"><input type="text" id="qTitle" placeholder="Titel, z. B. Ferdi-Quiz"><input type="text" id="qNote" placeholder="Hinweis, z. B. Donnerstag im Bus"></div><div><button class="btn small primary" id="qAdd">+ Runde</button></div>` : ''}
+    </div>
+    <p class="muted">Quiz-Host (für Max): <a href="${QUIZ_URL}" style="color:var(--pine)">${esc(QUIZ_URL.replace(/^https?:\/\//,''))}</a></p>`;
+  wireEdit();
+  if($('#qAdd')) $('#qAdd').onclick = () => { const t = $('#qTitle').value.trim(); if(!t) return; R('quiz/list/' + uid()).set({title: t, note: $('#qNote').value.trim(), order: Date.now()}); };
+  main.querySelectorAll('[data-qdel]').forEach(b => b.onclick = () => R('quiz/list/' + b.dataset.qdel).remove());
+}
+
+/* ---------- Hütte: Bilder und Infos ---------- */
+function renderInfo(){
+  const photos = Object.entries(D.photos).map(([id,p]) => ({id, ...p})).sort((a,b) => (a.at||0)-(b.at||0));
+  const infos = Object.entries(D.info).map(([id,p]) => ({id, ...p})).sort((a,b) => (a.order||0)-(b.order||0));
+  const heroId = D.settings.heroPhoto || (photos[0] && photos[0].id);
+  main.innerHTML = `${editBtn()}
+    <section class="stack"><div class="row between"><h2>Unsere Hütte</h2><div><button class="btn small primary" id="addPhoto">+ Fotos</button><input type="file" id="photoFile" accept="image/*" multiple hidden></div></div>
+      <div class="gallery">${photos.map(p => `<figure class="${p.id===heroId?'hero-pick':''}"><img src="${p.img}" alt="${esc(p.caption||'')}" loading="lazy">${p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : ''}${edit ? `<div class="acts"><button class="btn" data-hero="${p.id}" title="Als Titelbild">★</button><button class="btn" data-pdel="${p.id}" title="Löschen">✕</button></div>` : ''}</figure>`).join('') || '<p class="muted">Noch keine Fotos. Lade Bilder von der Hütte hoch; das erste wird zum Titelbild.</p>'}</div>
+      ${edit && photos.length ? '<p class="muted" style="font-size:13px">★ macht ein Foto zum Titelbild oben.</p>' : ''}
+    </section>
+    <section class="stack">${infos.map(b => edit ? `<div class="card stack" data-info="${b.id}"><input type="text" data-ik="title" value="${esc(b.title)}" placeholder="Überschrift"><textarea data-ik="text" placeholder="Text">${esc(b.text||'')}</textarea><div class="row between"><span class="muted" style="font-size:13px">Wird beim Verlassen des Felds gespeichert</span><button class="btn small danger" data-idel="${b.id}">Löschen</button></div></div>`
+      : `<div class="card infoblock"><h3>${esc(b.title)}</h3><div class="txt">${linkify(b.text||'')}</div></div>`).join('')}
+      ${edit ? `<div><button class="btn small primary" id="addInfo">+ Infoblock</button></div>` : ''}
+    </section>`;
+  wireEdit();
+  $('#addPhoto').onclick = () => $('#photoFile').click();
+  $('#photoFile').onchange = async e => { const files = Array.from(e.target.files); if(!files.length) return; toast(`${files.length} Foto${files.length===1?'':'s'} werden hochgeladen …`); for(const f of files){ try{ const img = await compressImage(f, 1400); await R('photos/' + uid()).set({img, caption:'', at: firebase.database.ServerValue.TIMESTAMP}); }catch(err){ toast(err.message, true); } } toast('Fotos gespeichert'); };
+  main.querySelectorAll('[data-hero]').forEach(b => b.onclick = () => R('settings/heroPhoto').set(b.dataset.hero));
+  main.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('photos/' + b.dataset.pdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
+  main.querySelectorAll('[data-info] [data-ik]').forEach(inp => inp.onchange = () => R('info/' + inp.closest('[data-info]').dataset.info + '/' + inp.dataset.ik).set(inp.value));
+  main.querySelectorAll('[data-idel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('info/' + b.dataset.idel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Wirklich löschen?'; });
+  if($('#addInfo')) $('#addInfo').onclick = () => R('info/' + uid()).set({title:'Neuer Block', text:'', order: Date.now()});
+}
+
+render();
+</script>
+</body>
+</html>

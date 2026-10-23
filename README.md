@@ -24,3 +24,7 @@ Die Werte in `FIREBASE_CONFIG` sind keine Geheimnisse, sie gehören in jede Fire
 5. Nach der letzten Frage: Rangliste. **Spiel löschen** entfernt die Daten aus der Datenbank; Spiele älter als zwei Tage werden beim nächsten Start automatisch gelöscht.
 
 Punkte: 100 pro richtiger Antwort plus bis zu 100 Bonus für Schnelligkeit (der Bonus sinkt mit der Zeit bis zum Ablauf der Fragezeit). Die Auflösung zeigt die drei Schnellsten.
+
+## JGA-App (`jga/`)
+
+Eigene Seite unter `/jga/` mit denselben Firebase-Zugangsdaten: Zeitplan (änderbar), Karte (OpenStreetMap, Orte aus dem Zeitplan per „Auf Karte setzen“), Bierpong-Turnier (2 Gruppen à 4 Teams, Halbfinale über Kreuz, Platz 3, Finale, live), Quiz-Zugang (zeigt automatisch den Code des gerade laufenden Foto-Quiz) und Hüttenfotos mit Infoblöcken. Alle dürfen alles bearbeiten („Bearbeiten“ oben rechts). Die Datenbankregeln brauchen zusätzlich den Knoten `jga` (siehe `database.rules.json`).

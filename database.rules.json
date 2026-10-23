@@ -9,6 +9,10 @@
         ".write": true,
         ".validate": "$code.matches(/^[A-Z0-9]{4}$/)"
       }
+    },
+    "jga": {
+      ".read": true,
+      ".write": true
     }
   }
 }
