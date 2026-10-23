@@ -406,6 +406,7 @@ function renderPlan(){
       ${curItem && nextItem ? `<div class="next">Danach ${esc(nextItem.time)} · ${esc(nextItem.title)} <strong>${cdText(nextItem)}</strong></div>` : ''}
     </div>`;
   html += `<div id="wx"></div>`;
+  html += busCard();
   html += trainCard();
   loadWeather();
   for(const [key, name, date] of DAYS){
@@ -467,6 +468,34 @@ const TAXIS = [
 /* S-Bahn Innsbruck Hbf → Matrei am Brenner: Muster :19 / :49, 16 Min. Fahrzeit (Fahrplan 2026). In der App unter Bearbeiten anpassbar. */
 const DEFAULT_DEPS = (() => { const a = []; for(let h = 5; h <= 22; h++){ a.push(`${String(h).padStart(2,'0')}:19`); a.push(`${String(h).padStart(2,'0')}:49`); } a.push('23:19'); return a.join(', '); })();
 const deps = () => ((D.settings.train && D.settings.train.deps) || DEFAULT_DEPS).split(/[,\s]+/).map(x => x.trim()).filter(x => /^\d{1,2}:\d{2}$/.test(x)).map(x => x.padStart(5,'0')).sort();
+/* Regiobus 580 Navis (Oberweg) → Matrei Bahnhof, Mo–Fr. Bekannte Abfahrten ab Navis Dorf (Okt. 2026, unvollständig), ca. 18 Min. bis zum Bahnhof. */
+const DEFAULT_BUS = '05:58, 06:20, 06:48, 07:25, 08:23, 09:23, 14:23, 15:23';
+const BUS_MIN = 18, WALK_MIN = 5;
+const busDeps = () => ((D.settings.train && D.settings.train.bus) || DEFAULT_BUS).split(/[,\s]+/).map(x => x.trim()).filter(x => /^\d{1,2}:\d{2}$/.test(x)).map(x => x.padStart(5,'0')).sort();
+/* Nightliner 560N Innsbruck → Matrei, nur Fr/Sa-Nacht und vor Feiertagen (Stand 2023, prüfen) */
+const DEFAULT_NIGHT = '01:00, 02:00, 03:00';
+const nightDeps = () => ((D.settings.train && D.settings.train.night) || DEFAULT_NIGHT).split(/[,\s]+/).map(x => x.trim()).filter(x => /^\d{1,2}:\d{2}$/.test(x)).map(x => x.padStart(5,'0')).sort();
+const toMin = t => +t.slice(0,2)*60 + +t.slice(3);
+const toHHMM = m => `${String(Math.floor(((m%1440)+1440)%1440/60)).padStart(2,'0')}:${String(((m%1440)+1440)%1440%60).padStart(2,'0')}`;
+function busCard(){
+  const bus = busDeps(), train = deps(); if(!bus.length) return '';
+  const n = new Date(), nowMin = n.getHours()*60 + n.getMinutes();
+  const dow = n.getDay(), weekday = dow >= 1 && dow <= 5;
+  const rows = bus.map(b => { const arr = toMin(b) + BUS_MIN; const conn = train.find(t => toMin(t) >= arr + 3); return {b, arr, conn}; });
+  const next = rows.find(r => toMin(r.b) - WALK_MIN >= nowMin);
+  const fmt = m => m < 60 ? `in ${m} Min.` : `in ${Math.floor(m/60)} h ${m%60} Min.`;
+  return `<div class="card stack" style="gap:8px"><div class="sub-h"><h3>Hinweg: Bus 580 Navis → Bahnhof Matrei → S-Bahn</h3>${edit ? '<button class="btn small" id="busEdit">Zeiten ändern</button>' : ''}</div>
+    ${!weekday ? '<div class="notice">Der Bus 580 fährt Mo–Fr. Am Wochenende: Taxi (siehe Hütte).</div>' : ''}
+    ${next ? `<div class="train">
+      <div class="b"><small>Loslaufen zur Haltestelle</small><div class="v">${toHHMM(toMin(next.b) - WALK_MIN)}</div><small>${fmt(toMin(next.b) - WALK_MIN - nowMin)}</small></div>
+      <div class="b"><small>Bus ab Navis</small><div class="v">${next.b}</div><small>an Bahnhof ca. ${toHHMM(next.arr)}</small></div>
+      <div class="b" style="grid-column:1/-1"><small>Anschluss S-Bahn nach Innsbruck</small><div class="v">${next.conn || '–'}</div><small>${next.conn ? `${toMin(next.conn) - next.arr} Min. Umstieg · an Innsbruck Hbf ca. ${toHHMM(toMin(next.conn) + 16)}` : 'keine S-Bahn im Fahrplan'}</small></div>
+    </div>` : '<p class="muted">Heute kein Bus mehr im hinterlegten Fahrplan.</p>'}
+    <details><summary class="muted" style="cursor:pointer;font-size:14px">Alle Verbindungen</summary><table style="margin-top:6px"><thead><tr><th>Bus ab Navis</th><th>Bahnhof</th><th>S-Bahn</th><th>Innsbruck</th></tr></thead><tbody>${rows.map(r => `<tr><td>${r.b}</td><td>${toHHMM(r.arr)}</td><td>${r.conn || '–'}</td><td>${r.conn ? toHHMM(toMin(r.conn)+16) : '–'}</td></tr>`).join('')}</tbody></table></details>
+    <p class="muted" style="font-size:13px">Haltestelle am Oberweg (z. B. Navis Abzw Kerschbaumsiedlung), ${WALK_MIN} Min. Fußweg eingerechnet, ca. ${BUS_MIN} Min. Fahrt. Busfahrplan unvollständig, live: <a href="https://fahrplan.oebb.at/bin/query.exe/dn?S=Navis+Dorf&Z=Innsbruck+Hbf&start=1" target="_blank" rel="noopener" style="color:var(--pine)">ÖBB-Auskunft Navis → Innsbruck</a> (zeigt Bus und S-Bahn zusammen).</p>
+    ${edit ? `<div class="stack" id="busForm" hidden><textarea id="busDeps" style="min-height:60px">${esc(bus.join(', '))}</textarea><div class="row"><button class="btn primary small" id="busSave">Speichern</button><button class="btn small" id="busReset">Standard</button></div><p class="muted" style="font-size:12px">Abfahrten Bus 580 ab Navis Richtung Matrei, mit Komma getrennt.</p></div>` : ''}
+  </div>`;
+}
 function trainCard(){
   const list = deps(); if(!list.length) return '';
   const n = new Date(), nowMin = n.getHours()*60 + n.getMinutes();
@@ -478,16 +507,20 @@ function trainCard(){
   return `<div class="card stack" style="gap:8px"><div class="sub-h"><h3>Heimweg: S-Bahn Innsbruck Hbf → Matrei</h3>${edit ? '<button class="btn small" id="trainEdit">Fahrplan ändern</button>' : ''}</div>
     <div class="train">
       <div class="b"><small>Nächste Bahn</small><div class="v">${next ? next : '–'}</div><small>${next ? fmt(diff(next)) : 'heute keine mehr'}</small></div>
-      <div class="b last"><small>Letzte Bahn</small><div class="v">${last}</div><small>${lastGone ? 'ist weg · Taxi!' : fmt(diff(last))}</small></div>
+      <div class="b last"><small>Letzte Bahn</small><div class="v">${last}</div><small>${lastGone ? 'ist weg · Nightliner oder Taxi' : fmt(diff(last))}</small></div>
     </div>
+    <div class="notice" style="font-size:13px"><strong>Nightliner 560N</strong> Innsbruck → Matrei, nur Fr/Sa-Nacht: ${nightDeps().join(' · ')} Uhr ab Innsbruck (Zeiten von 2023, prüfen), Fahrt ca. 35 Min., ab Matrei Taxi zur Hütte.</div>
     <p class="muted" style="font-size:13px">16 Min. Fahrzeit, ab Bahnhof Matrei mit dem Taxi zur Hütte. Zeiten nach Fahrplanmuster 2026, Verspätungen live: <a href="https://fahrplan.oebb.at/bin/query.exe/dn?S=Innsbruck+Hbf&Z=Matrei+am+Brenner&start=1" target="_blank" rel="noopener" style="color:var(--pine)">ÖBB-Auskunft</a></p>
-    ${edit ? `<div class="stack" id="trainForm" hidden><textarea id="trainDeps" style="min-height:70px">${esc(list.join(', '))}</textarea><div class="row"><button class="btn primary small" id="trainSave">Speichern</button><button class="btn small" id="trainReset">Standard</button></div><p class="muted" style="font-size:12px">Abfahrtszeiten ab Innsbruck Hbf, mit Komma getrennt.</p></div>` : ''}
+    ${edit ? `<div class="stack" id="trainForm" hidden><label class="field">S-Bahn ab Innsbruck Hbf<textarea id="trainDeps" style="min-height:70px">${esc(list.join(', '))}</textarea></label><label class="field">Nightliner 560N ab Innsbruck<input type="text" id="nightDeps" value="${esc(nightDeps().join(', '))}"></label><div class="row"><button class="btn primary small" id="trainSave">Speichern</button><button class="btn small" id="trainReset">Standard</button></div><p class="muted" style="font-size:12px">Abfahrtszeiten ab Innsbruck Hbf, mit Komma getrennt.</p></div>` : ''}
   </div>`;
 }
 function wireTrain(){
   if($('#trainEdit')) $('#trainEdit').onclick = () => { $('#trainForm').hidden = !$('#trainForm').hidden; };
-  if($('#trainSave')) $('#trainSave').onclick = () => R('settings/train/deps').set($('#trainDeps').value).then(() => toast('Fahrplan gespeichert'));
-  if($('#trainReset')) $('#trainReset').onclick = () => R('settings/train').remove();
+  if($('#trainSave')) $('#trainSave').onclick = () => R('settings/train').update({deps: $('#trainDeps').value, night: $('#nightDeps').value}).then(() => toast('Fahrplan gespeichert'));
+  if($('#trainReset')) $('#trainReset').onclick = () => R('settings/train').update({deps: null, night: null});
+  if($('#busEdit')) $('#busEdit').onclick = () => { $('#busForm').hidden = !$('#busForm').hidden; };
+  if($('#busSave')) $('#busSave').onclick = () => R('settings/train/bus').set($('#busDeps').value).then(() => toast('Busfahrplan gespeichert'));
+  if($('#busReset')) $('#busReset').onclick = () => R('settings/train/bus').remove();
 }
 setInterval(() => { if(tab === 'plan' && !typing()) render(); }, 60000);
 
@@ -807,7 +840,7 @@ function renderInfo(){
       <div class="gallery">${photos.map(p => `<figure class="${p.id===heroId?'hero-pick':''}"><img src="${p.img}" alt="${esc(p.caption||'')}" loading="lazy">${p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : ''}${edit ? `<div class="acts"><button class="btn" data-hero="${p.id}" title="Als Titelbild">★</button><button class="btn" data-pdel="${p.id}" title="Löschen">✕</button></div>` : ''}</figure>`).join('') || '<p class="muted">Noch keine Fotos. Lade Bilder von der Hütte hoch; das erste wird zum Titelbild.</p>'}</div>
       ${edit && photos.length ? '<p class="muted" style="font-size:13px">★ macht ein Foto zum Titelbild oben.</p>' : ''}
     </section>
-    <section class="card stack"><h3>Taxis für den Heimweg</h3><div class="taxi">${TAXIS.map(([n,t,w]) => `<div>${esc(n)}<small>${esc(w)}</small></div><a href="tel:${t.replace(/\s/g,'')}">${esc(t)}</a>`).join('')}</div><p class="muted" style="font-size:12px">Nummern aus Online-Verzeichnissen (Okt. 2026), vor der Fahrt kurz prüfen. Großraumtaxi für 8 Personen rechtzeitig vorbestellen.</p></section>
+    <section class="card stack"><h3>Taxis für den Heimweg</h3><div class="taxi">${TAXIS.map(([n,t,w]) => `<div>${esc(n)}<small>${esc(w)}</small></div><a href="tel:${t.replace(/\s/g,'')}">${esc(t)}</a>`).join('')}</div><p class="muted" style="font-size:12px">Nummern aus Online-Verzeichnissen (Okt. 2026), vor der Fahrt kurz prüfen. Großraumtaxi für 8 Personen rechtzeitig vorbestellen. Nachts Fr/Sa: Nightliner 560N Innsbruck → Matrei (ca. 1, 2, 3 Uhr), dann Taxi ins Navistal.</p></section>
     <section class="stack">${infos.map(b => edit ? `<div class="card stack" data-info="${b.id}"><input type="text" data-ik="title" value="${esc(b.title)}" placeholder="Überschrift"><textarea data-ik="text" placeholder="Text">${esc(b.text||'')}</textarea><div class="row between"><span class="muted" style="font-size:13px">Wird beim Verlassen des Felds gespeichert</span><button class="btn small danger" data-idel="${b.id}">Löschen</button></div></div>`
       : `<div class="card infoblock"><h3>${esc(b.title)}</h3><div class="txt">${linkify(b.text||'')}</div></div>`).join('')}
       ${edit ? `<div><button class="btn small primary" id="addInfo">+ Infoblock</button></div>` : ''}
