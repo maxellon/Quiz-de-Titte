@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>JGA Ferdi · Orga-Liste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Rubik:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F3F5F2; --surface:#FFFFFF; --ink:#16231B; --muted:#5E6E63; --line:#D5DDD6; --soft:#E6ECE6;
+  --pine:#1E5A3C; --amber:#E6A117; --ok:#1E8A5A; --bad:#C23B3B;
+  --display:"Bricolage Grotesque","Rubik",system-ui,sans-serif; --body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121914;--surface:#1A231C;--ink:#EDF2EC;--muted:#9BAA9F;--line:#2B3A2F;--soft:#223027;--pine:#2E7A52;--amber:#F2B23A;--ok:#3FBF86;--bad:#E06060;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121914;--surface:#1A231C;--ink:#EDF2EC;--muted:#9BAA9F;--line:#2B3A2F;--soft:#223027;--pine:#2E7A52;--amber:#F2B23A;--ok:#3FBF86;--bad:#E06060;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+main{max-width:680px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,6vw,36px);margin:0;line-height:1.1}
+p{margin:0}.muted{color:var(--muted)}
+a{color:var(--pine)}
+button,input{font:inherit;color:inherit}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.item{display:grid;grid-template-columns:30px 1fr;gap:10px;padding:12px 0;border-top:1px solid var(--line);align-items:start}
+.item:first-child{border-top:0}
+.item input[type=checkbox]{width:24px;height:24px;accent-color:var(--pine);margin-top:2px}
+.item.done .txt{text-decoration:line-through;color:var(--muted)}
+.txt{font-weight:500}
+.who{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:6px;align-items:center}
+.who input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.who input.set{border-color:var(--ok);font-weight:700}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn.primary{background:var(--pine);color:#fff;border-color:var(--pine)}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:5px 9px;font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grow{flex:1 1 180px;min-width:0}
+.add input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.notice{padding:10px 14px;border-radius:10px;background:var(--soft);font-size:14px}
+.notice.err{background:color-mix(in srgb,var(--bad) 14%,var(--surface));color:var(--bad)}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<main>
+  <div class="head"><h1>Orga-Liste</h1><a href="./" style="font-size:14px">← zur JGA-App</a></div>
+  <p class="muted">Für Alex, Sven und Max. Namen eintragen, wer was übernimmt, und abhaken, wenn es erledigt ist. Alle sehen denselben Stand.</p>
+  <div class="card" id="list"><p class="muted">Lädt …</p></div>
+  <div class="card add">
+    <div class="row"><input type="text" id="newText" class="grow" placeholder="Neuer Punkt" maxlength="160"><button class="btn primary" id="add">Hinzufügen</button></div>
+  </div>
+  <p class="muted" style="font-size:13px"><button class="btn small" id="toggleDone">Erledigte anzeigen</button> <button class="btn small danger" id="clearDone" hidden>Erledigte löschen</button></p>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyACL_u2I8L2PaHwUtEaA99EZ9iXBZ3Pol4",
+  authDomain: "quiz-de-titte.firebaseapp.com",
+  databaseURL: "https://quiz-de-titte-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "quiz-de-titte",
+});
+const db = firebase.database(), R = p => db.ref('jga/' + p);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36);
+const ls = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } } };
+const ME = ls.get('jga-me', '');
+/* Diese Punkte müssen drin sein (werden einmalig ergänzt, falls sie fehlen) */
+const MUST = [
+  'Taxi vorbestellen: Freitagmorgen Hütte → Bäckerei Aste Matrei und zurück (Semmeln)',
+  'Taxi vorbestellen: Freitag 11:30 Hütte → Bahnhof Matrei am Brenner (2 Großraumtaxis)',
+  'Pizza bestellen: Pizzeria Toscana Matrei, +43 5273 60437, 16 Pizzen für Donnerstag ca. 16 Uhr',
+  'Tennishalle bestellen: 4 Plätze, Freitag 14–16:30 (TI Innsbruck +43 677 64000130 oder IEV +43 512 373031)',
+];
+let todos = {}, showDone = false, ensured = false;
+let typingId = null;
+const toast = (m, err) => { let n = $('#toast'); if(!n){ n = document.createElement('div'); n.id = 'toast'; n.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:5;max-width:90vw'; document.body.appendChild(n); } n.innerHTML = `<div class="notice ${err?'err':''}">${esc(m)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => n.innerHTML = '', 3000); };
+R('todos').on('value', s => {
+  todos = s.val() || {};
+  if(!ensured){ ensured = true; const texts = Object.values(todos).map(t => (t.text||'').toLowerCase()); const u = {};
+    MUST.forEach((t, i) => { const key = t.split(':')[0].toLowerCase(); if(!texts.some(x => x.startsWith(key) && x.includes(t.split(':')[1].trim().slice(0,12).toLowerCase()))) u[uid()] = {text: t, who: '', done: false, order: -10 + i}; });
+    if(Object.keys(u).length) R('todos').update(u); }
+  render();
+}, e => { $('#list').innerHTML = `<div class="notice err">Keine Verbindung: ${esc(e.message)}</div>`; });
+function render(){
+  if(typingId && document.activeElement && document.activeElement.dataset.who === typingId) return;
+  const list = Object.entries(todos).map(([id,t]) => ({id, ...t})).sort((a,b) => (a.done?1:0)-(b.done?1:0) || (a.order||0)-(b.order||0));
+  const open = list.filter(t => !t.done), done = list.filter(t => t.done);
+  const row = t => `<div class="item ${t.done?'done':''}">
+      <input type="checkbox" data-done="${t.id}" ${t.done?'checked':''}>
+      <div><div class="txt">${esc(t.text)}</div>
+        <div class="who"><input type="text" data-who="${t.id}" value="${esc(t.who||'')}" placeholder="Wer übernimmt das?" maxlength="30" class="${t.who?'set':''}">${!t.who && ME ? `<button class="btn small" data-me="${t.id}">Ich (${esc(ME)})</button>` : `<button class="btn small danger" data-del="${t.id}" title="Löschen">✕</button>`}</div>
+      </div></div>`;
+  $('#list').innerHTML = (open.map(row).join('') || '<p class="muted">Alles erledigt.</p>') + (showDone && done.length ? `<p class="muted" style="margin:12px 0 4px;font-size:13px">Erledigt</p>` + done.map(row).join('') : '');
+  $('#toggleDone').textContent = (showDone ? 'Erledigte ausblenden' : 'Erledigte anzeigen') + ` (${done.length})`;
+  $('#clearDone').hidden = !(showDone && done.length);
+  document.querySelectorAll('[data-done]').forEach(c => c.onchange = () => R('todos/' + c.dataset.done).update({done: c.checked, doneAt: c.checked ? firebase.database.ServerValue.TIMESTAMP : null}));
+  document.querySelectorAll('[data-who]').forEach(inp => { inp.onfocus = () => { typingId = inp.dataset.who; }; inp.onblur = () => { typingId = null; R('todos/' + inp.dataset.who + '/who').set(inp.value.trim()).catch(e => toast(e.message, true)); }; inp.onkeydown = e => { if(e.key === 'Enter') inp.blur(); }; });
+  document.querySelectorAll('[data-me]').forEach(b => b.onclick = () => R('todos/' + b.dataset.me + '/who').set(ME));
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('todos/' + b.dataset.del).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
+}
+$('#add').onclick = () => { const t = $('#newText').value.trim(); if(!t) return; R('todos/' + uid()).set({text: t, who: '', done: false, order: Date.now()}).then(() => { $('#newText').value = ''; }).catch(e => toast(e.message, true)); };
+$('#newText').onkeydown = e => { if(e.key === 'Enter') $('#add').click(); };
+$('#toggleDone').onclick = () => { showDone = !showDone; render(); };
+$('#clearDone').onclick = () => { const u = {}; Object.entries(todos).forEach(([id,t]) => { if(t.done) u[id] = null; }); R('todos').update(u); };
+</script>
+</body>
+</html>

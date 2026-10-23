@@ -270,7 +270,7 @@ function compressImage(file, max){
 
 /* ---------- Daten (live) ---------- */
 const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {}, draw: null,
-  people: {}, expenses: {}, scores: {}, todos: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, wall: {}, songs: {}, polls: {} };
+  people: {}, expenses: {}, scores: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, wall: {}, songs: {}, polls: {} };
 const DEVICE = (() => { let d = ls.get('jga-device', null); if(!d){ d = uid(); ls.set('jga-device', d); } return d; })();
 let ME = ls.get('jga-me', '');
 let tab = ls.get('jga-tab', 'plan'), edit = false, openGame = null, editItem = null;
@@ -320,25 +320,6 @@ R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = 
   if(!onErr.hut2 && s.exists()){ onErr.hut2 = true; Object.entries(D.info).forEach(([id,b]) => { if(/hier eintragen/.test(b.text||'') && /(Hüttenadresse|^Adresse): hier eintragen|^Adresse, Zufahrt/m.test(b.text||'')) R('info/' + id + '/text').set((b.text||'').replace(/Hüttenadresse: hier eintragen/, 'Hüttenadresse: Oberweg 22, 6145 Navis, Tirol').replace(/^Adresse, Zufahrt, Schlüsselübergabe, WLAN: hier eintragen\./, 'Adresse: Oberweg 22, 6145 Navis, Tirol\nZufahrt, Schlüsselübergabe, WLAN: hier eintragen.')); }); }
   render(); }, onErr);
 R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); render(); }, onErr);
-const SEED_TODOS = [
-  ['Firebase-Regeln mit „jga“-Block veröffentlichen', 'Max'],
-  ['Alle 16 Teilnehmer in die App eintragen (Orga → Teilnehmer)', 'Max'],
-  ['Header-Bild für die App generieren und unter „Hütte“ als Titelbild setzen', 'Max'],
-  ['Gastgeber fragen: 16 Personen bei 15 Gästen ok? Check-in-Ablauf, Schlüssel, Ruhezeiten, Semmelservice?', 'Alex'],
-  ['Busunternehmen: Einkaufsstopp in Matrei (ca. 30 Min.) und Zufahrt zur Hütte in Navis absprechen', 'Sven'],
-  ['Pizzeria Toscana, Matrei (+43 5273 60437): 16 Pizzen für Donnerstag vorbestellen', 'Sven'],
-  ['Bäckerei Aste, Matrei (+43 5273 6769): Semmeln für Fr + Sa vorbestellen, Abholung per Taxi', 'Alex'],
-  ['Taxis für Freitag 11:30 Hütte → Bahnhof Matrei vorbestellen (2 Großraumtaxis)', 'Alex'],
-  ['Taxis für Freitagnacht Innsbruck/Matrei → Hütte klären (Wipptal Taxi +43 664 1223055, Mair +43 5273 6225)', 'Sven'],
-  ['Tennishalle reservieren: 4 Plätze, Fr 14–16:30 (TI Innsbruck +43 677 64000130 oder IEV +43 512 373031)', 'Max'],
-  ['Restaurant fürs Abendessen Freitag in Innsbruck reservieren (16 Personen)', 'Alex'],
-  ['Frühstückslocation Oberesslingen für Donnerstag 9 Uhr reservieren', 'Sven'],
-  ['Bierpong-Equipment einpacken: Becher, Bälle, Tische prüfen', 'Sven'],
-  ['Quiz-Runden für die Busfahrt fertig machen (Foto-Quiz + Video-Quiz)', 'Max'],
-  ['Kurtaxe in bar mitnehmen (ca. 2,60 € pro Person und Nacht)', 'Alex'],
-  ['April 2027: S-Bahn-Fahrplan Innsbruck → Matrei prüfen und in der App anpassen', 'Max'],
-];
-R('todos').on('value', s => { D.todos = s.val() || {}; if(!s.exists() && !onErr.todos){ onErr.todos = true; const u = {}; SEED_TODOS.forEach(([t,w],i) => { u[uid()] = {text:t, who:w, done:false, order:i}; }); R('todos').set(u); } render(); }, onErr);
 const SEED_PEOPLE = [['Alex','+49 162 2303116'],['Sven','+49 176 47720397'],['Max','+49 163 3936728']];
 R('people').on('value', s => { D.people = s.val() || {}; if(!onErr.ppl){ onErr.ppl = true; SEED_PEOPLE.forEach(([n,ph]) => { const ex = Object.entries(D.people).find(([,p]) => (p.name||'').toLowerCase() === n.toLowerCase()); if(!ex) R('people/' + uid()).set({name: n, phone: ph, at: firebase.database.ServerValue.TIMESTAMP}); else if(!ex[1].phone) R('people/' + ex[0] + '/phone').set(ph); }); } render(); renderMe(); }, onErr);
 R('expenses').on('value', s => { D.expenses = s.val() || {}; render(); }, onErr);
@@ -786,13 +767,7 @@ function renderOrga(){
   const ex = Object.entries(D.expenses).map(([id,e]) => ({id, ...e})).sort((a,b) => (b.at||0)-(a.at||0));
   const st = settlement();
   const names = people.map(p => p.name);
-  const todos = Object.entries(D.todos).map(([id,t]) => ({id, ...t})).sort((a,b) => (a.done?1:0)-(b.done?1:0) || (a.order||0)-(b.order||0));
-  const ORG = ['Alex','Sven','Max','alle'];
   main.innerHTML = `${editBtn()}
-    <section class="card stack"><div class="sub-h"><h2>To-do</h2><span class="muted" style="font-size:13px">${todos.filter(t => t.done).length} von ${todos.length} erledigt</span></div>
-      ${todos.map(t => `<div class="check ${t.done?'done':''}"><input type="checkbox" data-tdone="${t.id}" ${t.done?'checked':''}><div><div class="txt">${esc(t.text)}</div><div class="who">${esc(t.who||'')}</div></div><div class="row">${edit ? `<select data-twho="${t.id}" style="width:auto;padding:4px 8px">${ORG.map(o => `<option ${o===t.who?'selected':''}>${o}</option>`).join('')}</select><button class="btn small danger" data-tdel="${t.id}">✕</button>` : ''}</div></div>`).join('') || '<p class="muted">Nichts offen.</p>'}
-      <div class="row"><input type="text" id="todoNew" class="grow" placeholder="Neuer Punkt" maxlength="140"><select id="todoWho" style="width:auto">${ORG.map(o => `<option ${o===ME?'selected':''}>${o}</option>`).join('')}</select><button class="btn primary" id="todoAdd">+</button></div>
-    </section>
     <section class="card stack"><div class="sub-h"><h2>Kasse</h2><span class="muted" style="font-size:13px">${eur(st.total||0)} gesamt</span></div>
       ${st.moves.length ? `<div class="stack" style="gap:6px">${st.moves.map(m => `<div class="settle"><strong>${esc(m.from)}</strong> zahlt <strong>${eur(m.amt)}</strong> an <strong>${esc(m.to)}</strong></div>`).join('')}</div>` : '<p class="muted">Noch keine Ausgaben. Wer etwas auslegt, trägt es hier ein; die Umlage rechnet sich selbst.</p>'}
       ${st.bal.length && st.total ? `<details><summary class="muted" style="cursor:pointer;font-size:14px">Saldo je Person</summary><div class="bal" style="margin-top:8px">${st.bal.map(b => `<span>${esc(b.n)}</span><span class="${b.v>0.005?'pos':b.v<-0.005?'neg':''}">${b.v>0?'+':''}${eur(b.v)}</span>`).join('')}</div></details>` : ''}
@@ -803,6 +778,7 @@ function renderOrga(){
         <div class="row" id="exForList" hidden>${names.map(n => `<label class="btn small" style="cursor:pointer"><input type="checkbox" data-exfor="${esc(n)}" style="accent-color:var(--pine)"> ${esc(n)}</label>`).join('')}</div>
         <div><button class="btn primary small" id="exAdd" ${names.length?'':'disabled'}>+ Ausgabe</button></div></div>
     </section>
+    <p class="muted" style="font-size:14px">Orga-Team: <a href="todo.html" style="color:var(--pine);font-weight:500">Orga-Liste öffnen</a> (wer übernimmt was, abhaken)</p>
     <section class="card stack"><div class="sub-h"><h2>Teilnehmer</h2><span class="muted" style="font-size:13px">${people.length} Personen</span></div>
       ${people.map(p => edit ? `<div class="row" style="padding:6px 0;border-top:1px solid var(--line)"><input type="text" class="grow" data-person="${p.id}" data-k="name" value="${esc(p.name||'')}" placeholder="Name"><input type="text" class="grow" data-person="${p.id}" data-k="phone" value="${esc(p.phone||'')}" placeholder="Handy" inputmode="tel"><button class="btn small danger" data-pdel2="${p.id}">✕</button></div>`
         : `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><strong>${esc(p.name)}</strong>${p.phone ? `<span style="font-variant-numeric:tabular-nums;user-select:all">${esc(p.phone)}</span>` : ''}</div>`).join('') || '<p class="muted">Noch niemand eingetragen.</p>'}
@@ -811,10 +787,6 @@ function renderOrga(){
     </section>
 `;
   wireEdit();
-  main.querySelectorAll('[data-tdone]').forEach(c => c.onchange = () => R('todos/' + c.dataset.tdone + '/done').set(c.checked));
-  main.querySelectorAll('[data-twho]').forEach(sel => sel.onchange = () => R('todos/' + sel.dataset.twho + '/who').set(sel.value));
-  main.querySelectorAll('[data-tdel]').forEach(b => b.onclick = () => R('todos/' + b.dataset.tdel).remove());
-  $('#todoAdd').onclick = () => { const t = $('#todoNew').value.trim(); if(!t) return; R('todos/' + uid()).set({text: t, who: $('#todoWho').value, done: false, order: Date.now()}); };
   $('#exFor').onchange = () => { $('#exForList').hidden = $('#exFor').value !== 'some'; };
   $('#exAdd').onclick = () => { const desc = $('#exDesc').value.trim(), amount = parseFloat(String($('#exAmt').value).replace(',', '.')); if(!desc || !(amount > 0)) return toast('Beschreibung und Betrag eintragen.', true);
     const some = $('#exFor').value === 'some'; const forList = Array.from(main.querySelectorAll('[data-exfor]:checked')).map(c => c.dataset.exfor); if(some && !forList.length) return toast('Für wen? Mindestens eine Person anhaken.', true);
