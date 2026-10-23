@@ -651,7 +651,7 @@ function renderOrga(){
         <div><button class="btn primary small" id="exAdd" ${names.length?'':'disabled'}>+ Ausgabe</button></div></div>
     </section>
     <section class="card stack"><div class="sub-h"><h2>Einkaufs- und Packliste</h2><span class="muted" style="font-size:13px">${shop.filter(x => x.done).length} von ${shop.length} erledigt</span></div>
-      ${shop.map(x => `<div class="check ${x.done?'done':''}"><input type="checkbox" data-sdone="${x.id}" ${x.done?'checked':''}><div><div class="txt">${esc(x.text)}</div>${x.who ? `<div class="who">${esc(x.who)}</div>` : ''}</div><div class="row">${!x.who && !x.done ? `<button class="btn small" data-stake="${x.id}">Ich bring's</button>` : ''}${edit ? `<button class="btn small danger" data-shdel="${x.id}">✕</button>` : ''}</div></div>`).join('')}
+      ${shop.map(x => `<div class="check ${x.done?'done':''}"><input type="checkbox" data-sdone="${x.id}" ${x.done?'checked':''}><div><div class="txt">${esc(x.text)}</div>${x.who ? `<div class="who">${esc(x.who)}</div>` : ''}</div><div class="row">${edit ? `<button class="btn small danger" data-shdel="${x.id}">✕</button>` : ''}</div></div>`).join('')}
       <div class="row"><input type="text" id="shopNew" class="grow" placeholder="Neuer Punkt" maxlength="80"><button class="btn primary" id="shopAdd">+</button></div>
     </section>
     <section class="card stack"><div class="sub-h"><h2>Teilnehmer</h2><span class="muted" style="font-size:13px">${people.length} Personen</span></div>
@@ -672,7 +672,6 @@ function renderOrga(){
     R('expenses/' + uid()).set({desc, amount, payer: $('#exPayer').value, forAll: !some, for: some ? forList : null, at: firebase.database.ServerValue.TIMESTAMP}).then(() => toast('Eingetragen')).catch(e => toast(e.message, true)); };
   main.querySelectorAll('[data-edel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('expenses/' + b.dataset.edel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
   main.querySelectorAll('[data-sdone]').forEach(c => c.onchange = () => R('shopping/' + c.dataset.sdone + '/done').set(c.checked));
-  main.querySelectorAll('[data-stake]').forEach(b => b.onclick = () => R('shopping/' + b.dataset.stake + '/who').set(who()));
   main.querySelectorAll('[data-shdel]').forEach(b => b.onclick = () => R('shopping/' + b.dataset.shdel).remove());
   $('#shopAdd').onclick = () => { const t = $('#shopNew').value.trim(); if(!t) return; R('shopping/' + uid()).set({text: t, who: '', done: false, order: Date.now()}); };
   $('#personAdd').onclick = () => { const n = $('#personNew').value.trim(); if(!n) return; if(people.some(p => (p.name||'').toLowerCase() === n.toLowerCase())) return toast('Gibt es schon.', true); R('people/' + uid()).set({name: n, at: firebase.database.ServerValue.TIMESTAMP}); };
