@@ -286,7 +286,7 @@ const SEED_SCHEDULE = [
 const SEED_INFO = [
   {title:'Hütte', text:'Bauernhaus „Peerhof“, Oberweg 22, 6145 Navis (Tirol)\nAirbnb: https://www.airbnb.de/rooms/2570629\nStall und Scheune sind tabu\nKurtaxe bar vor Ort (ca. 2 bis 2,60 € pro Person und Nacht)\nHausordnung beachten\nCheck-in ab 16:00 Uhr · Check-out und Ruhezeiten: hier eintragen'},
   {title:'Mitbringen', text:'Hausschuhe, Handtuch, Tennisschläger (falls vorhanden), Sportklamotten, Bargeld für die Kneipentour, Powerbank.'},
-  {title:'Wichtige Nummern', text:'Organisation: Max\nNotruf Österreich: 112'},
+  {title:'Wichtige Nummern', text:'Organisation: Alex, Sven, Max\nNotruf Österreich: 112'},
 ];
 let seeded = false;
 const onErr = e => { if(!onErr.shown){ onErr.shown = true; main.insertAdjacentHTML('afterbegin', `<div class="notice err">Keine Verbindung zu den Daten: ${/permission/i.test(e.message) ? 'In Firebase fehlen die Regeln für „jga“ (Realtime Database → Regeln).' : esc(e.message)}</div>`); } };
@@ -304,6 +304,7 @@ R('photos').on('value', s => { D.photos = s.val() || {}; render(); applyHero(); 
 R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); }
   else if(!onErr.info2 && !Object.values(D.info).some(b => /notfall/i.test(b.title||''))){ onErr.info2 = true; R('info/' + uid()).set({...SEED_INFO2, order: 99}); }
   if(!onErr.hut3 && s.exists()){ onErr.hut3 = true; Object.entries(D.info).forEach(([id,b]) => { if(/^hütte$/i.test((b.title||'').trim()) && (!/Peerhof/.test(b.text||'') || /Ganzes Haus, bis 15|Gastgeber: Karl|Check-in\/Check-out und Ruhezeiten: hier eintragen/.test(b.text||''))) R('info/' + id + '/text').set(SEED_INFO[0].text); }); }
+  if(!onErr.org && s.exists()){ onErr.org = true; Object.entries(D.info).forEach(([id,b]) => { if(/^Organisation: Max$/m.test(b.text||'')) R('info/' + id + '/text').set((b.text||'').replace(/^Organisation: Max$/m, 'Organisation: Alex, Sven, Max')); }); }
   if(!onErr.hut2 && s.exists()){ onErr.hut2 = true; Object.entries(D.info).forEach(([id,b]) => { if(/hier eintragen/.test(b.text||'') && /(Hüttenadresse|^Adresse): hier eintragen|^Adresse, Zufahrt/m.test(b.text||'')) R('info/' + id + '/text').set((b.text||'').replace(/Hüttenadresse: hier eintragen/, 'Hüttenadresse: Oberweg 22, 6145 Navis, Tirol').replace(/^Adresse, Zufahrt, Schlüsselübergabe, WLAN: hier eintragen\./, 'Adresse: Oberweg 22, 6145 Navis, Tirol\nZufahrt, Schlüsselübergabe, WLAN: hier eintragen.')); }); }
   render(); }, onErr);
 R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); }, onErr);
