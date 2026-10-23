@@ -216,13 +216,14 @@ const SEED_INFO = [
   {title:'Wichtige Nummern', text:'Organisation: Max\nNotruf Österreich: 112'},
 ];
 let seeded = false;
-R('schedule').on('value', s => { D.schedule = s.val() || {}; if(!seeded && !s.exists()){ seeded = true; const u = {}; SEED_SCHEDULE.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('schedule').set(u); } render(); });
-R('teams').on('value', s => { D.teams = s.val() || {}; render(); });
-R('results').on('value', s => { D.results = s.val() || {}; render(); });
-R('quiz').on('value', s => { D.quiz = s.val() || {}; render(); });
-R('photos').on('value', s => { D.photos = s.val() || {}; render(); applyHero(); });
-R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); } render(); });
-R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); });
+const onErr = e => { if(!onErr.shown){ onErr.shown = true; main.insertAdjacentHTML('afterbegin', `<div class="notice err">Keine Verbindung zu den Daten: ${/permission/i.test(e.message) ? 'In Firebase fehlen die Regeln für „jga“ (Realtime Database → Regeln).' : esc(e.message)}</div>`); } };
+R('schedule').on('value', s => { D.schedule = s.val() || {}; if(!seeded && !s.exists()){ seeded = true; const u = {}; SEED_SCHEDULE.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('schedule').set(u); } render(); }, onErr);
+R('teams').on('value', s => { D.teams = s.val() || {}; render(); }, onErr);
+R('results').on('value', s => { D.results = s.val() || {}; render(); }, onErr);
+R('quiz').on('value', s => { D.quiz = s.val() || {}; render(); }, onErr);
+R('photos').on('value', s => { D.photos = s.val() || {}; render(); applyHero(); }, onErr);
+R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); } render(); }, onErr);
+R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); }, onErr);
 
 function applyHero(){
   const id = D.settings.heroPhoto; const ph = id && D.photos[id] ? D.photos[id] : Object.values(D.photos).sort((a,b) => (a.at||0)-(b.at||0))[0];
@@ -236,10 +237,19 @@ countdown(); setInterval(countdown, 60000);
 
 /* ---------- Tabs ---------- */
 $('#tabs').onclick = e => { const b = e.target.closest('.tab'); if(!b) return; tab = b.dataset.tab; ls.set('jga-tab', tab); edit = false; openGame = null; editItem = null; render(); };
+/* Während jemand in einem Feld tippt, wird die Seite nicht neu aufgebaut; das holt sie nach dem Verlassen des Felds nach. */
+let pendingRender = false;
+const typing = () => { const a = document.activeElement; return a && main.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
 function render(){
+  if(typing()){ pendingRender = true; return; }
+  pendingRender = false;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   ({plan: renderPlan, map: renderMap, tour: renderTour, quiz: renderQuiz, info: renderInfo})[tab]();
 }
+main.addEventListener('focusout', () => setTimeout(() => { if(pendingRender && !typing()) render(); }, 80));
+function save(path, value){ return R(path).set(value).catch(e => toast(/PERMISSION_DENIED/i.test(e.message) ? 'Speichern abgelehnt: In Firebase fehlen die Regeln für „jga“.' : 'Speichern fehlgeschlagen: ' + e.message, true)); }
+const debounce = (fn, ms) => { const t = {}; return (key, ...args) => { clearTimeout(t[key]); t[key] = setTimeout(() => fn(...args), ms); }; };
+const saveSoon = debounce(save, 400);
 const editBtn = (label='Bearbeiten') => `<div class="edit-toggle"><button class="btn small" id="editToggle">${edit ? 'Fertig' : label}</button></div>`;
 function wireEdit(){ const b = $('#editToggle'); if(b) b.onclick = () => { edit = !edit; editItem = null; render(); }; }
 
@@ -355,7 +365,7 @@ function renderTour(){
   </tbody></table><div style="margin-top:8px">${GROUP_GAMES[g].map(([gid,a,b]) => gameRow(gid,a,b)).join('')}</div></div>`;
   main.innerHTML = `${editBtn('Teams bearbeiten')}
     ${champ ? `<div class="champ"><span class="eyebrow" style="color:rgba(255,255,255,.8)">Bierpong-Sieger</span><div class="name">${esc(teamName(champ))}</div><div>${esc(teamSub(champ))}</div></div>` : ''}
-    ${edit ? `<div class="card stack"><h3>Teams</h3>${TEAM_IDS.map(i => `<div class="teamedit"><span class="no">${i}</span><input type="text" data-team="${i}" data-k="name" value="${esc((D.teams[i]||{}).name||'')}" placeholder="Team ${i}"><input type="text" data-team="${i}" data-k="p1" value="${esc((D.teams[i]||{}).p1||'')}" placeholder="Spieler 1"><input type="text" data-team="${i}" data-k="p2" value="${esc((D.teams[i]||{}).p2||'')}" placeholder="Spieler 2"></div>`).join('')}<p class="muted" style="font-size:13px">Teams 1 bis 4 sind Gruppe A, 5 bis 8 Gruppe B. Änderungen werden sofort gespeichert.</p>
+    ${edit ? `<div class="card stack"><h3>Teams</h3>${TEAM_IDS.map(i => `<div class="teamedit"><span class="no">${i}</span><input type="text" data-team="${i}" data-k="name" value="${esc((D.teams[i]||{}).name||'')}" placeholder="Team ${i}"><input type="text" data-team="${i}" data-k="p1" value="${esc((D.teams[i]||{}).p1||'')}" placeholder="Spieler 1"><input type="text" data-team="${i}" data-k="p2" value="${esc((D.teams[i]||{}).p2||'')}" placeholder="Spieler 2"></div>`).join('')}<p class="muted" style="font-size:13px">Teams 1 bis 4 sind Gruppe A, 5 bis 8 Gruppe B. Wird beim Tippen gespeichert; der Name erscheint überall, sobald du „Fertig“ drückst.</p>
       <div class="row"><button class="btn danger" id="resetTour">Alle Ergebnisse löschen</button></div></div>` : ''}
     <div class="groups">${tbl('A')}${tbl('B')}</div>
     <p class="muted">Die ersten zwei jeder Gruppe kommen weiter. Halbfinale über Kreuz: Erster A gegen Zweiter B, Erster B gegen Zweiter A.</p>
@@ -367,7 +377,7 @@ function renderTour(){
   main.querySelectorAll('[data-game]').forEach(g => g.onclick = e => { if(e.target.closest('.scoreform')) return; const gid = g.dataset.game; const [a,b] = findTeams(gid); if(!a || !b) return; openGame = openGame === gid ? null : gid; render(); if(openGame) { const i = $('#sa'); if(i) i.focus(); } });
   if($('#ssave')) $('#ssave').onclick = () => { const a = +$('#sa').value, b = +$('#sb').value; if($('#sa').value === '' || $('#sb').value === '') return toast('Beide Zahlen eintragen.', true); if(a === b) return toast('Unentschieden gibt es nicht. Wer hat gewonnen?', true); R('results/' + openGame).set({a, b, at: firebase.database.ServerValue.TIMESTAMP}).then(() => { openGame = null; toast('Gespeichert'); }).catch(e => toast(e.message, true)); };
   if($('#sclear')) $('#sclear').onclick = () => { R('results/' + openGame).remove(); openGame = null; };
-  main.querySelectorAll('[data-team]').forEach(inp => inp.onchange = () => R('teams/' + inp.dataset.team + '/' + inp.dataset.k).set(inp.value.trim()));
+  main.querySelectorAll('[data-team]').forEach(inp => inp.oninput = () => { const p = 'teams/' + inp.dataset.team + '/' + inp.dataset.k; saveSoon(p, p, inp.value.trim()); });
   if($('#resetTour')) $('#resetTour').onclick = () => { const b = $('#resetTour'); if(b.dataset.armed){ R('results').remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich alle Ergebnisse löschen?'; };
 }
 function findTeams(gid){ for(const g of ['A','B']){ const f = GROUP_GAMES[g].find(x => x[0] === gid); if(f) return [f[1], f[2]]; } const ko = koTeams(); return {S1: ko.s1, S2: ko.s2, F: ko.f, P3: ko.p3}[gid] || [null,null]; }
@@ -409,7 +419,7 @@ function renderInfo(){
   $('#photoFile').onchange = async e => { const files = Array.from(e.target.files); if(!files.length) return; toast(`${files.length} Foto${files.length===1?'':'s'} werden hochgeladen …`); for(const f of files){ try{ const img = await compressImage(f, 1400); await R('photos/' + uid()).set({img, caption:'', at: firebase.database.ServerValue.TIMESTAMP}); }catch(err){ toast(err.message, true); } } toast('Fotos gespeichert'); };
   main.querySelectorAll('[data-hero]').forEach(b => b.onclick = () => R('settings/heroPhoto').set(b.dataset.hero));
   main.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('photos/' + b.dataset.pdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
-  main.querySelectorAll('[data-info] [data-ik]').forEach(inp => inp.onchange = () => R('info/' + inp.closest('[data-info]').dataset.info + '/' + inp.dataset.ik).set(inp.value));
+  main.querySelectorAll('[data-info] [data-ik]').forEach(inp => inp.oninput = () => { const p = 'info/' + inp.closest('[data-info]').dataset.info + '/' + inp.dataset.ik; saveSoon(p, p, inp.value); });
   main.querySelectorAll('[data-idel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('info/' + b.dataset.idel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Wirklich löschen?'; });
   if($('#addInfo')) $('#addInfo').onclick = () => R('info/' + uid()).set({title:'Neuer Block', text:'', order: Date.now()});
 }
