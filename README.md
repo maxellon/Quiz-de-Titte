@@ -28,3 +28,10 @@ Punkte: 100 pro richtiger Antwort plus bis zu 100 Bonus für Schnelligkeit (der 
 ## JGA-App (`jga/`)
 
 Eigene Seite unter `/jga/` mit denselben Firebase-Zugangsdaten: Zeitplan (änderbar), Karte (OpenStreetMap, Orte aus dem Zeitplan per „Auf Karte setzen“), Bierpong-Turnier (2 Gruppen à 4 Teams, Halbfinale über Kreuz, Platz 3, Finale, live), Quiz-Zugang (zeigt automatisch den Code des gerade laufenden Foto-Quiz) und Hüttenfotos mit Infoblöcken. Alle dürfen alles bearbeiten („Bearbeiten“ oben rechts). Die Datenbankregeln brauchen zusätzlich den Knoten `jga` (siehe `database.rules.json`).
+
+## Videos als Frage und Auflösung
+
+Im Editor nimmt „Fotos oder Clips hinzufügen“ auch MP4-Dateien (max. 1,5 MB je Clip). Pro Frage lässt sich unter „Auflösung“ ein zweites Bild oder ein Auflösungsclip plus Erklärtext hinterlegen; das sehen Host und Spieler nach dem Schließen der Frage. Die Handys laden die nächste Frage samt Medien im Hintergrund vor.
+
+Clips vorbereiten (ffmpeg, ergibt ca. 0,5–1 MB für 6 Sekunden):
+`ffmpeg -i clip.mov -ss 0 -t 6 -vf "scale=-2:480,fps=25" -an -c:v libx264 -crf 28 -preset slow -movflags +faststart clip.mp4`

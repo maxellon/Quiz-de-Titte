@@ -63,6 +63,9 @@ label.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weigh
 .qlist{display:flex;flex-direction:column;gap:12px}
 .q{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:start}
 .q .thumb{width:120px;aspect-ratio:1;max-width:100%;object-fit:cover;border-radius:10px;background:var(--soft)}
+.q .thumb.small{width:90px}
+.reveal-edit{border-top:1px dashed var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.explain{font-size:clamp(17px,2.4vw,22px);font-weight:500;text-align:center;padding:12px 16px;border-radius:12px;background:var(--soft)}
 .q .num{font-family:var(--display);font-weight:800;font-size:18px}
 .ab{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .opt{display:grid;grid-template-columns:40px 1fr;align-items:center;gap:10px}
@@ -206,6 +209,33 @@ function compressImage(file){
   });
 }
 
+/* Video einlesen (fertig geschnittener MP4-Clip, max. 1,5 MB) */
+const VIDEO_MAX = 1.5 * 1024 * 1024;
+function readVideo(file){
+  return new Promise((resolve, reject) => {
+    if(file.size > VIDEO_MAX) return reject(new Error(`„${file.name}“ ist ${(file.size/1048576).toFixed(1)} MB. Clips dürfen höchstens 1,5 MB haben (ca. 480p, 5–8 Sekunden).`));
+    const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = () => reject(new Error('Video konnte nicht gelesen werden')); r.readAsDataURL(file);
+  });
+}
+async function readMedia(file){
+  if(file.type.startsWith('video/')) return {vid: await readVideo(file), img: null};
+  return {img: await compressImage(file), vid: null};
+}
+/* Medium rendern: Bild oder Video (stumm, Endlosschleife, startet selbst) */
+function mediaHtml(m, cls, extra=''){
+  if(m && m.vid) return `<video class="${cls}" src="${m.vid}" autoplay muted loop playsinline ${extra}></video>`;
+  if(m && m.img) return `<img class="${cls}" src="${m.img}" alt="" ${extra}>`;
+  return '';
+}
+const revealMedia = q => (q.rvid || q.rimg) ? {vid: q.rvid, img: q.rimg} : {vid: q.vid, img: q.img};
+
+/* Quizze in IndexedDB (localStorage ist für Videos zu klein) */
+const idb = {
+  open(){ return new Promise((res, rej) => { const r = indexedDB.open('fotoquiz', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async get(k){ const d = await this.open(); return new Promise((res, rej) => { const t = d.transaction('kv').objectStore('kv').get(k); t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error); }); },
+  async set(k, v){ const d = await this.open(); return new Promise((res, rej) => { const t = d.transaction('kv','readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(true); t.onerror = () => rej(t.error); }); },
+};
+
 /* Aufwärmfrage: eingebautes Bild, läuft als Frage 1; vor Frage 2 werden alle Punkte auf 0 gesetzt */
 const PRACTICE = {
   img: 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="800" height="600" fill="#BFE3F7"/><g stroke="#F5B800" stroke-width="22" stroke-linecap="round">${Array.from({length:12},(_,i)=>{const a=i*Math.PI/6;return `<line x1="${400+Math.cos(a)*200}" y1="${300+Math.sin(a)*200}" x2="${400+Math.cos(a)*260}" y2="${300+Math.sin(a)*260}"/>`;}).join('')}</g><circle cx="400" cy="300" r="160" fill="#FFD23F"/></svg>`),
@@ -240,7 +270,7 @@ function showConfigMissing(){
    HOST
    ============================================================ */
 const H = {
-  quizzes: ls.get('fq-quizzes', []),
+  quizzes: [],
   quiz: null,          // aktuell bearbeitetes Quiz
   code: null,          // laufendes Spiel
   questions: [],       // Fragen des laufenden Spiels
@@ -251,7 +281,12 @@ const H = {
   timerId: null,
   busy: false,
 };
-function saveQuizzes(){ if(!ls.set('fq-quizzes', H.quizzes)) hostToast('Speichern im Browser nicht möglich (zu groß oder gesperrt). Exportiere das Quiz als Datei.', true); }
+async function loadQuizzes(){
+  try{ const v = await idb.get('quizzes'); if(Array.isArray(v)){ H.quizzes = v; return; } }catch(e){}
+  H.quizzes = ls.get('fq-quizzes', []);          // alte Speicherung übernehmen
+  if(H.quizzes.length){ try{ await idb.set('quizzes', H.quizzes); ls.del('fq-quizzes'); }catch(e){} }
+}
+function saveQuizzes(){ idb.set('quizzes', H.quizzes).catch(() => hostToast('Speichern im Browser nicht möglich (privater Modus oder Speicher voll). Exportiere das Quiz als Datei.', true)); }
 function hostToast(msg, err){ const n = $('#toast'); if(!n) return; n.hidden = false; n.className = 'notice' + (err?' err':''); n.textContent = msg; clearTimeout(hostToast.t); hostToast.t = setTimeout(()=>{ n.hidden = true; }, 5000); }
 function stopSubs(){ H.unsub.forEach(f => f()); H.unsub = []; clearInterval(H.timerId); H.timerId = null; }
 
@@ -289,17 +324,27 @@ function hostEditor(){
   const q = H.quiz;
   const items = q.questions.map((it, i) => `
     <div class="card q">
-      <img class="thumb" src="${it.img}" alt="">
+      <div class="stack" style="gap:6px">${mediaHtml(it, 'thumb')}<button class="btn small" data-media="${i}">${it.vid ? 'Video' : 'Foto'} ersetzen</button></div>
       <div class="stack">
-        <div class="row between"><span class="num">Frage ${i+1}</span>
+        <div class="row between"><span class="num">Frage ${i+2}</span>
           <div class="row"><button class="btn icon" data-up="${i}" title="Nach oben" ${i===0?'disabled':''}>↑</button><button class="btn icon" data-down="${i}" title="Nach unten" ${i===q.questions.length-1?'disabled':''}>↓</button><button class="btn icon danger" data-del="${i}" title="Löschen">✕</button></div></div>
-        <label class="field">Fragetext (optional)<input type="text" id="t${i}" data-field="text" data-i="${i}" value="${esc(it.text)}" placeholder="z. B. Wo ist das?"></label>
+        <label class="field">Fragetext (optional)<input type="text" id="t${i}" data-field="text" data-i="${i}" value="${esc(it.text)}" placeholder="z. B. Tor oder kein Tor?"></label>
         <div class="ab">
           <div class="opt"><span class="tag a">A</span><input type="text" id="a${i}" data-field="a" data-i="${i}" value="${esc(it.a)}" placeholder="Antwort A"></div>
           <div class="opt"><span class="tag b">B</span><input type="text" id="b${i}" data-field="b" data-i="${i}" value="${esc(it.b)}" placeholder="Antwort B"></div>
         </div>
         <div class="row"><span class="muted" style="font-size:14px">Richtig ist:</span>
           <div class="correct-pick"><button class="btn ${it.correct==='A'?'on':''}" data-correct="A" data-i="${i}">A</button><button class="btn ${it.correct==='B'?'on':''}" data-correct="B" data-i="${i}">B</button></div></div>
+        <div class="reveal-edit">
+          <span class="eyebrow">Auflösung (optional)</span>
+          <div class="row" style="align-items:flex-start">
+            ${(it.rimg || it.rvid) ? `<div class="stack" style="gap:6px">${mediaHtml({img: it.rimg, vid: it.rvid}, 'thumb small')}<button class="btn small danger" data-rclear="${i}">Entfernen</button></div>` : ''}
+            <div class="grow stack" style="gap:6px">
+              <button class="btn small" data-rmedia="${i}">${(it.rimg || it.rvid) ? 'Auflösungs-Medium ersetzen' : 'Auflösungsbild oder -clip hinzufügen'}</button>
+              <input type="text" id="r${i}" data-field="rtext" data-i="${i}" value="${esc(it.rtext || '')}" placeholder="Erklärtext, z. B. „Knapp drüber. Kein Tor.“">
+            </div>
+          </div>
+        </div>
       </div>
     </div>`).join('');
   const w = q.warmup || PRACTICE;
@@ -323,8 +368,8 @@ function hostEditor(){
     <div class="row between"><h2>Frage 1 zum Aufwärmen</h2><span class="muted">Läuft wie jede Frage, danach werden alle Punkte auf 0 gesetzt</span></div>
     ${warm}
     <div class="row between"><h2>${q.questions.length} Frage${q.questions.length===1?'':'n'}</h2>
-      <div class="row"><button class="btn primary" id="add">Fotos hinzufügen</button><input type="file" id="files" accept="image/*" multiple hidden></div></div>
-    <div class="qlist">${items || '<p class="muted">Füge Fotos hinzu. Jedes Foto wird eine Frage mit den Antworten A und B.</p>'}</div>
+      <div class="row"><button class="btn primary" id="add">Fotos oder Clips hinzufügen</button><input type="file" id="files" accept="image/*,video/mp4" multiple hidden><input type="file" id="mediaFile" accept="image/*,video/mp4" hidden></div></div>
+    <div class="qlist">${items || '<p class="muted">Füge Fotos oder kurze MP4-Clips hinzu. Jede Datei wird eine Frage mit den Antworten A und B. Clips: höchstens 1,5 MB.</p>'}</div>
     <div id="toast" class="notice" hidden></div>
     <div class="row between card">
       <div class="row"><button class="btn" id="export">Als Datei sichern</button><button class="btn danger" id="delquiz">Quiz löschen</button></div>
@@ -345,12 +390,24 @@ function hostEditor(){
   $('#add').onclick = () => $('#files').click();
   $('#files').onchange = async e => {
     const files = Array.from(e.target.files); if(!files.length) return;
-    hostToast(`${files.length} Foto${files.length===1?'':'s'} werden verarbeitet …`);
+    hostToast(`${files.length} Datei${files.length===1?'':'en'} werden verarbeitet …`);
     for (const f of files){
-      try{ const img = await compressImage(f); q.questions.push({img, text:'', a:'', b:'', correct:'A'}); }
-      catch(err){ hostToast(err.message, true); }
+      try{ const m = await readMedia(f); q.questions.push({img: m.img, vid: m.vid, text:'', a:'', b:'', correct:'A', rimg: null, rvid: null, rtext: ''}); }
+      catch(err){ hostToast(err.message, true); await new Promise(r => setTimeout(r, 2500)); }
     }
     saveQuizzes(); hostEditor();
+  };
+  /* Frage-Medium oder Auflösungs-Medium ersetzen */
+  let mediaTarget = null;
+  app.querySelectorAll('[data-media]').forEach(b => b.onclick = () => { mediaTarget = {i: +b.dataset.media, reveal: false}; $('#mediaFile').click(); });
+  app.querySelectorAll('[data-rmedia]').forEach(b => b.onclick = () => { mediaTarget = {i: +b.dataset.rmedia, reveal: true}; $('#mediaFile').click(); });
+  app.querySelectorAll('[data-rclear]').forEach(b => b.onclick = () => { const it = q.questions[+b.dataset.rclear]; it.rimg = null; it.rvid = null; saveQuizzes(); hostEditor(); });
+  $('#mediaFile').onchange = async e => {
+    const f = e.target.files[0]; if(!f || !mediaTarget) return;
+    try{ const m = await readMedia(f); const it = q.questions[mediaTarget.i];
+      if(mediaTarget.reveal){ it.rimg = m.img; it.rvid = m.vid; } else { it.img = m.img; it.vid = m.vid; }
+      saveQuizzes(); hostEditor();
+    }catch(err){ hostToast(err.message, true); }
   };
   app.querySelectorAll('[data-field]').forEach(inp => inp.oninput = () => { q.questions[+inp.dataset.i][inp.dataset.field] = inp.value; saveQuizzesSoon(); });
   app.querySelectorAll('[data-correct]').forEach(b => b.onclick = () => { q.questions[+b.dataset.i].correct = b.dataset.correct; saveQuizzes(); hostEditor(); });
@@ -389,7 +446,7 @@ function hostStartDialog(){
     try{
       initDb();
       let code; for(let i=0;i<8;i++){ code = randCode(4); const s = await gref(code).once('value'); if(!s.exists()) break; }
-      const questions = q.questions.map(it => ({img: it.img, text: it.text, a: it.a, b: it.b, correct: it.correct}));
+      const questions = q.questions.map(it => ({img: it.img || null, vid: it.vid || null, text: it.text, a: it.a, b: it.b, correct: it.correct, rimg: it.rimg || null, rvid: it.rvid || null, rtext: it.rtext || ''}));
       const wsrc = q.warmup || PRACTICE;
       const warmup = {img: wsrc.img, text: wsrc.text || '', a: wsrc.a || 'A', b: wsrc.b || 'B', correct: wsrc.correct || 'A'};
       await gref(code).set({
@@ -456,7 +513,7 @@ function hostRender(){
     app.innerHTML = `<div class="wrap">${head}
       <div class="row between"><h2>${qLabel(st)}</h2><span class="count" id="answered">0 Antworten</span></div>
       ${st.seconds ? `<div class="timer"><i id="tbar" style="width:100%"></i></div>` : ''}
-      <img class="photo" src="${q.img}" alt="">
+      ${mediaHtml(q, 'photo')}
       ${q.text ? `<h2 class="center">${esc(q.text)}</h2>` : ''}
       <div class="answers"><div class="answer a"><span class="tag">A</span><span>${esc(q.a)}</span></div><div class="answer b"><span class="tag">B</span><span>${esc(q.b)}</span></div></div>
       <div class="row between"><span class="muted" id="tleft"></span><button class="btn primary big" id="reveal">Auflösen</button></div>
@@ -486,8 +543,8 @@ function hostRender(){
     const last = !st.practice && st.q+1 >= st.total;
     app.innerHTML = `<div class="wrap">${head}
       <div class="row between"><h2>${qLabel(st)}</h2><span class="count">${nRight} von ${Object.keys(H.players).length} richtig</span></div>
-      <img class="photo" src="${q.img}" alt="" style="max-height:40vh">
-      ${q.text ? `<h2 class="center">${esc(q.text)}</h2>` : ''}
+      ${mediaHtml(revealMedia(q), 'photo', 'style="max-height:40vh"')}
+      ${q.rtext ? `<div class="explain">${esc(q.rtext)}</div>` : (q.text ? `<h2 class="center">${esc(q.text)}</h2>` : '')}
       <div class="answers"><div class="answer a ${q.correct==='A'?'win':'dim'}"><span class="tag">A</span><span>${esc(q.a)}</span></div><div class="answer b ${q.correct==='B'?'win':'dim'}"><span class="tag">B</span><span>${esc(q.b)}</span></div></div>
       <div class="card stack">
         <div class="bar"><span class="tag a">A</span><div class="track"><div class="fill a" style="width:${100*nA/tot}%"></div></div><span class="n">${nA}</span></div>
@@ -578,7 +635,7 @@ async function hostReveal(){
 /* ============================================================
    SPIELER
    ============================================================ */
-const P = { code: null, pid: null, name: '', state: null, players: {}, cache: {}, unsub: [], timerId: null, result: null };
+const P = { code: null, pid: null, name: '', state: null, players: {}, cache: {}, loading: {}, warmed: [], unsub: [], timerId: null, result: null };
 function pStop(){ P.unsub.forEach(f => f()); P.unsub = []; clearInterval(P.timerId); P.timerId = null; }
 
 function playerCodeScreen(msg){
@@ -646,8 +703,22 @@ function playerGame(){
 function pHead(){ return topbar(`<span class="chip">${esc(P.name)}</span><span class="chip code">${esc(P.code)}</span>`); }
 async function loadQuestion(i){
   if(P.cache[i]) return P.cache[i];
-  const q = (await gref(P.code, i === 'practice' ? 'warmup' : 'questions/' + i).once('value')).val() || (i === 'practice' ? PRACTICE : null);
-  if(q) P.cache[i] = q; return q;
+  if(P.loading[i]) return P.loading[i];
+  P.loading[i] = (async () => {
+    const q = (await gref(P.code, i === 'practice' ? 'warmup' : 'questions/' + i).once('value')).val() || (i === 'practice' ? PRACTICE : null);
+    if(q){ P.cache[i] = q; warm(q); }
+    delete P.loading[i]; return q;
+  })();
+  return P.loading[i];
+}
+/* Medien im Hintergrund dekodieren, damit die Frage ohne Verzögerung erscheint */
+function warm(q){
+  for(const src of [q.img, q.vid, q.rimg, q.rvid]){
+    if(!src) continue;
+    if(src.startsWith('data:video')){ const v = document.createElement('video'); v.preload = 'auto'; v.muted = true; v.src = src; v.load(); P.warmed.push(v); }
+    else { const im = new Image(); im.src = src; P.warmed.push(im); }
+  }
+  if(P.warmed.length > 12) P.warmed.splice(0, P.warmed.length - 12);
 }
 function myScore(){ return (P.players[P.pid] || {}).score || 0; }
 function myRank(){ const ps = sortPlayers(P.players); const i = ps.findIndex(p => p.id === P.pid); return {pos: i<0 ? '–' : (ps.findIndex(p => p.score === ps[i].score) + 1), of: ps.length}; }
@@ -658,7 +729,7 @@ async function playerRender(){
     app.innerHTML = `<div class="app">${pHead()}<div class="spacer"></div>
       <div class="card stack center"><h1>Du bist dabei, ${esc(P.name)}!</h1><p class="muted" id="rk">Warte, bis das Quiz startet …</p></div>
       <div class="spacer"></div></div>`;
-    playerRenderRank(); loadQuestion('practice').catch(()=>{}); loadQuestion(0).catch(()=>{});
+    playerRenderRank(); loadQuestion('practice').catch(()=>{}); loadQuestion(0).then(() => loadQuestion(1)).catch(()=>{});
   }
   else if(st.phase === 'question'){
     const key = qKey(st);
@@ -670,7 +741,7 @@ async function playerRender(){
     app.innerHTML = `<div class="app">${pHead()}
       <div class="row between"><span class="muted">${qLabel(st)}</span><span class="count" id="tleft"></span></div>
       ${st.seconds ? `<div class="timer"><i id="tbar" style="width:100%"></i></div>` : ''}
-      <img class="photo" src="${q.img}" alt="" style="max-height:48vh">
+      ${mediaHtml(q, 'photo', 'style="max-height:48vh"')}
       ${q.text ? `<h2 class="center">${esc(q.text)}</h2>` : ''}
       <div class="answers" id="ans">
         <button class="answer a ${mine?.choice==='A'?'picked':''}" data-c="A" ${mine?'disabled':''}><span class="tag">A</span><span>${esc(q.a)}</span></button>
@@ -704,10 +775,11 @@ async function playerRender(){
         ${speed}
         ${q ? `<p>Richtig war <strong>${esc(q.correct)}: ${esc(q.correct==='A'?q.a:q.b)}</strong></p>` : ''}
       </div>
+      ${q && (q.rimg || q.rvid || q.rtext) ? `<div class="card stack"><span class="eyebrow">Auflösung</span>${(q.rimg || q.rvid) ? mediaHtml({img: q.rimg, vid: q.rvid}, 'photo', 'style="max-height:40vh"') : ''}${q.rtext ? `<p class="explain">${esc(q.rtext)}</p>` : ''}</div>` : ''}
       <div class="card center" id="rk"></div>
       <p class="muted center">Warte auf die nächste Frage …</p>
     </div>`;
-    playerRenderRank(); loadQuestion(st.q+1).catch(()=>{});
+    playerRenderRank(); loadQuestion(st.practice ? 0 : st.q+1).catch(()=>{});
   }
   else if(st.phase === 'end'){
     app.innerHTML = `<div class="app">${pHead()}
@@ -736,7 +808,7 @@ function playerRenderRank(){
 /* ---------- Start ---------- */
 if(!configOk()){ showConfigMissing(); }
 else if(isPlayer){ if(joinCode.length === 4) playerNameScreen(joinCode); else playerCodeScreen(); }
-else { hostHome(); }
+else { loadQuizzes().then(hostHome); }
 </script>
 </body>
 </html>
