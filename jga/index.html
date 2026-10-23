@@ -221,15 +221,15 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 </header>
 <nav class="tabs"><div class="in" id="tabs">
   <button class="tab on" data-tab="plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Plan</button>
-  <button class="tab" data-tab="map"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Karte</button>
+  <button class="tab" data-tab="info"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg>Hütte</button>
   <button class="tab" data-tab="eta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Wie lange</button>
-  <button class="tab" data-tab="ibk"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 17l-2 4M16 17l2 4M8 7h.01M16 7h.01"/></svg>Innsbruck</button>
   <button class="tab" data-tab="tour"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 12v4M8 20h8M9 16h6"/></svg>Bierpong</button>
+  <button class="tab" data-tab="ibk"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 17l-2 4M16 17l2 4M8 7h.01M16 7h.01"/></svg>Innsbruck</button>
   <button class="tab" data-tab="lag"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L20 20M6 6l6 6M4.5 10.5l5-5"/></svg>LAG</button>
   <button class="tab" data-tab="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"/></svg>Quiz</button>
   <button class="tab" data-tab="fun"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>Spaß</button>
   <button class="tab" data-tab="orga"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>Orga</button>
-  <button class="tab" data-tab="info"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg>Hütte</button>
+  <button class="tab" data-tab="map"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Karte</button>
 </div></nav>
 <main id="main"></main>
 
@@ -503,14 +503,29 @@ function trainCard(){
   const diff = t => toMin(t) - nowMin;
   const fmt = m => m < 60 ? `in ${m} Min.` : `in ${Math.floor(m/60)} h ${m%60} Min.`;
   const lastGone = toMin(last) < nowMin;
+  const nightMode = lastGone || nowMin < 4*60 + 30;
+  const taxiHtml = `<div class="taxi" style="margin-top:4px">${TAXIS.map(([nm,t,w]) => `<div>${esc(nm)}<small>${esc(w)}</small></div><a href="tel:${t.replace(/\s/g,'')}">${esc(t)}</a>`).join('')}</div>`;
+  const editForm = edit ? `<div class="stack" id="trainForm" hidden><label class="field">S-Bahn ab Innsbruck Hbf<textarea id="trainDeps" style="min-height:70px">${esc(list.join(', '))}</textarea></label><label class="field">Nightliner 560N ab Innsbruck<input type="text" id="nightDeps" value="${esc(nightDeps().join(', '))}"></label><div class="row"><button class="btn primary small" id="trainSave">Speichern</button><button class="btn small" id="trainReset">Standard</button></div><p class="muted" style="font-size:12px">Abfahrtszeiten ab Innsbruck Hbf, mit Komma getrennt.</p></div>` : '';
+  if(nightMode){
+    const nights = nightDeps(); const nm = nowMin < 4*60+30 ? nowMin : nowMin - 1440;
+    const nextN = nights.find(t => toMin(t) >= nm);
+    const dow = n.getDay(), nightOk = dow === 5 || dow === 6 || (dow === 0 && nowMin < 4*60+30);
+    return `<div class="card stack" style="gap:8px"><div class="sub-h"><h2>Rückweg: Innsbruck → Hütte</h2>${edit ? '<button class="btn small" id="trainEdit">Fahrplan ändern</button>' : ''}</div>
+      <div class="notice" style="font-weight:700">Letzte S-Bahn (${last}) ist weg.</div>
+      ${nightOk ? `<div class="train"><div class="b"><small>Nightliner 560N ab Innsbruck</small><div class="v">${nextN || '–'}</div><small>${nextN ? fmt(toMin(nextN) - nm) + ' · bis Matrei, dann Taxi' : 'heute Nacht keiner mehr'}</small></div><div class="b last"><small>Letzter Nightliner</small><div class="v">${nights[nights.length-1] || '–'}</div><small>Zeiten von 2023, prüfen</small></div></div>`
+        : '<p class="muted">Der Nightliner 560N fährt nur in den Nächten Fr/Sa und Sa/So. Heute: Taxi.</p>'}
+      <h3 style="margin-top:4px">Taxi rufen</h3>${taxiHtml}
+      ${editForm}
+    </div>`;
+  }
   return `<div class="card stack" style="gap:8px"><div class="sub-h"><h2>Rückweg: Innsbruck → Hütte</h2>${edit ? '<button class="btn small" id="trainEdit">Fahrplan ändern</button>' : ''}</div>
     <div class="train">
       <div class="b"><small>Nächste Bahn</small><div class="v">${next ? next : '–'}</div><small>${next ? fmt(diff(next)) : 'heute keine mehr'}</small></div>
-      <div class="b last"><small>Letzte Bahn</small><div class="v">${last}</div><small>${lastGone ? 'ist weg · Nightliner oder Taxi' : fmt(diff(last))}</small></div>
+      <div class="b last"><small>Letzte Bahn</small><div class="v">${last}</div><small>${fmt(diff(last))}</small></div>
     </div>
-    <div class="notice" style="font-size:13px"><strong>Nightliner 560N</strong> Innsbruck → Matrei, nur Fr/Sa-Nacht: ${nightDeps().join(' · ')} Uhr ab Innsbruck (Zeiten von 2023, prüfen), Fahrt ca. 35 Min., ab Matrei Taxi zur Hütte.</div>
+    <p class="muted" style="font-size:13px">Danach Fr/Sa-Nacht: Nightliner 560N (${nightDeps().join(' · ')} Uhr, prüfen) bis Matrei und Taxi. Taxinummern erscheinen hier automatisch nach der letzten Bahn.</p>
     <p class="muted" style="font-size:13px">16 Min. Fahrzeit, ab Bahnhof Matrei mit dem Taxi zur Hütte. Zeiten nach Fahrplanmuster 2026, Verspätungen live: <a href="https://fahrplan.oebb.at/bin/query.exe/dn?S=Innsbruck+Hbf&Z=Matrei+am+Brenner&start=1" target="_blank" rel="noopener" style="color:var(--pine)">ÖBB-Auskunft</a></p>
-    ${edit ? `<div class="stack" id="trainForm" hidden><label class="field">S-Bahn ab Innsbruck Hbf<textarea id="trainDeps" style="min-height:70px">${esc(list.join(', '))}</textarea></label><label class="field">Nightliner 560N ab Innsbruck<input type="text" id="nightDeps" value="${esc(nightDeps().join(', '))}"></label><div class="row"><button class="btn primary small" id="trainSave">Speichern</button><button class="btn small" id="trainReset">Standard</button></div><p class="muted" style="font-size:12px">Abfahrtszeiten ab Innsbruck Hbf, mit Komma getrennt.</p></div>` : ''}
+    ${editForm}
   </div>`;
 }
 function wireTrain(){
@@ -526,25 +541,13 @@ setInterval(() => { if((tab === 'plan' || tab === 'ibk') && !typing()) render();
 /* ---------- Innsbruck: Überblick, Hinweg, Rückweg ---------- */
 function renderIbk(){
   const n = new Date(), nowMin = n.getHours()*60 + n.getMinutes();
-  const bus = busDeps(), train = deps(), night = nightDeps();
-  const nextBus = bus.find(b => toMin(b) - WALK_MIN >= nowMin);
-  const conn = nextBus ? train.find(t => toMin(t) >= toMin(nextBus) + BUS_MIN + 3) : null;
-  const nextTrain = train.find(t => toMin(t) >= nowMin), lastTrain = train[train.length-1];
-  const fmt = m => m <= 0 ? 'jetzt' : m < 60 ? `in ${m} Min.` : `in ${Math.floor(m/60)} h ${m%60} Min.`;
-  const row = (l, v, sub) => `<div class="row between" style="padding:7px 0;border-top:1px solid var(--line)"><span>${l}</span><span style="text-align:right"><strong style="font-family:var(--display);font-size:18px;font-variant-numeric:tabular-nums">${v}</strong>${sub ? `<div class="muted" style="font-size:12px">${sub}</div>` : ''}</span></div>`;
   const fri = Object.values(D.schedule).filter(it => it.day === 'fr').sort((a,b) => (a.time||'').localeCompare(b.time||''));
   main.innerHTML = `${editBtn()}
-    <div class="card stack" style="gap:4px"><div class="sub-h"><h2>Auf einen Blick</h2><span class="count">${toHHMM(nowMin)} Uhr</span></div>
-      ${row('Nächster Bus ab Navis (580)', nextBus || '–', nextBus ? `loslaufen ${toHHMM(toMin(nextBus) - WALK_MIN)} · ${fmt(toMin(nextBus) - WALK_MIN - nowMin)}` : 'heute keiner mehr im Fahrplan')}
-      ${row('Anschluss-S-Bahn ab Matrei', conn || '–', conn ? `an Innsbruck Hbf ca. ${toHHMM(toMin(conn)+16)}` : '')}
-      ${row('Nächste S-Bahn Innsbruck → Matrei', nextTrain || '–', nextTrain ? fmt(toMin(nextTrain) - nowMin) : 'heute keine mehr')}
-      ${row('Letzte S-Bahn Innsbruck → Matrei', lastTrain, toMin(lastTrain) < nowMin ? 'ist weg' : fmt(toMin(lastTrain) - nowMin))}
-      ${row('Nightliner 560N (nur Fr/Sa-Nacht)', night.join(' · '), 'ab Innsbruck bis Matrei, dann Taxi · Zeiten prüfen')}
-      ${fri.length ? `<details style="margin-top:6px"><summary class="muted" style="cursor:pointer;font-size:14px">Freitagsplan</summary>${fri.map(it => `<div class="row" style="padding:4px 0;font-size:14px"><strong style="width:48px">${esc(it.time||'')}</strong><span>${esc(it.title)}${it.place ? ` <span class="muted">· ${esc(it.place)}</span>` : ''}</span></div>`).join('')}</details>` : ''}
+    <div class="card stack" style="gap:2px"><div class="sub-h"><h2>Ablauf Innsbruck</h2><span class="count">${toHHMM(nowMin)} Uhr</span></div>
+      ${fri.map(it => `<div class="row" style="padding:7px 0;border-top:1px solid var(--line);align-items:flex-start"><strong style="width:52px;font-family:var(--display);font-size:17px;color:var(--pine)">${esc(it.time||'')}</strong><span class="grow"><strong>${esc(it.title)}</strong>${it.place ? `<div class="muted" style="font-size:13px">${esc(it.place)}</div>` : ''}</span></div>`).join('') || '<p class="muted">Freitag ist noch nichts geplant.</p>'}
     </div>
     ${busCard()}
-    ${trainCard()}
-    <div class="card"><h3>Taxis</h3><div class="taxi" style="margin-top:8px">${TAXIS.map(([nm,t,w]) => `<div>${esc(nm)}<small>${esc(w)}</small></div><a href="tel:${t.replace(/\s/g,'')}">${esc(t)}</a>`).join('')}</div></div>`;
+    ${trainCard()}`;
   wireEdit(); wireTrain();
 }
 
