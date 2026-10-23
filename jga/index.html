@@ -663,10 +663,10 @@ function renderOrga(){
         <div><button class="btn primary small" id="exAdd" ${names.length?'':'disabled'}>+ Ausgabe</button></div></div>
     </section>
     <section class="card stack"><div class="sub-h"><h2>Teilnehmer</h2><span class="muted" style="font-size:13px">${people.length} Personen</span></div>
-      ${people.map(p => edit ? `<div class="editrow" style="padding:6px 0;border-top:1px solid var(--line)"><input type="text" data-person="${p.id}" data-k="name" value="${esc(p.name||'')}" placeholder="Name"><input type="text" data-person="${p.id}" data-k="phone" value="${esc(p.phone||'')}" placeholder="Handy" inputmode="tel"><input type="text" data-person="${p.id}" data-k="bed" value="${esc(p.bed||'')}" placeholder="Zimmer / Bett"><div class="row"><input type="text" class="grow" data-person="${p.id}" data-k="note" value="${esc(p.note||'')}" placeholder="Essen, Allergien, Hinweise"><button class="btn small danger" data-pdel2="${p.id}">✕</button></div></div>`
-        : `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div class="grow"><strong>${esc(p.name)}</strong>${p.bed ? ` <span class="muted">· ${esc(p.bed)}</span>` : ''}${p.note ? `<div class="muted" style="font-size:13px">${esc(p.note)}</div>` : ''}</div>${p.phone ? `<span style="font-variant-numeric:tabular-nums;user-select:all">${esc(p.phone)}</span>` : ''}</div>`).join('') || '<p class="muted">Noch niemand eingetragen.</p>'}
+      ${people.map(p => edit ? `<div class="row" style="padding:6px 0;border-top:1px solid var(--line)"><input type="text" class="grow" data-person="${p.id}" data-k="name" value="${esc(p.name||'')}" placeholder="Name"><input type="text" class="grow" data-person="${p.id}" data-k="phone" value="${esc(p.phone||'')}" placeholder="Handy" inputmode="tel"><button class="btn small danger" data-pdel2="${p.id}">✕</button></div>`
+        : `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><strong>${esc(p.name)}</strong>${p.phone ? `<span style="font-variant-numeric:tabular-nums;user-select:all">${esc(p.phone)}</span>` : ''}</div>`).join('') || '<p class="muted">Noch niemand eingetragen.</p>'}
       <div class="row"><input type="text" id="personNew" class="grow" placeholder="Name" maxlength="20"><button class="btn primary" id="personAdd">+</button></div>
-      <p class="muted" style="font-size:13px">Handynummer, Bett und Essenswünsche über „Bearbeiten“ ergänzen.</p>
+      <p class="muted" style="font-size:13px">Handynummer über „Bearbeiten“ ergänzen.</p>
     </section>
 `;
   wireEdit();
