@@ -182,11 +182,11 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 .rank .pos{font-family:var(--display);font-weight:800;font-size:20px;color:var(--muted);font-variant-numeric:tabular-nums}
 .rank.top .pos{color:var(--pine)}
 /* Wertung */
-.score{display:grid;grid-template-columns:1fr repeat(5,44px) 54px;gap:4px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.score{display:grid;grid-template-columns:1fr repeat(4,56px) 54px;gap:4px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
 .score input{padding:4px;text-align:center;font-size:14px}
 .score .h{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:700}
 .score .tot{font-family:var(--display);font-weight:800;font-size:16px;text-align:right}
-@media (max-width:480px){.score{grid-template-columns:1fr repeat(5,36px) 46px;font-size:12px}.score input{font-size:13px;padding:3px}}
+@media (max-width:480px){.score{grid-template-columns:1fr repeat(4,46px) 46px;font-size:12px}.score input{font-size:13px;padding:3px}}
 .sub-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -251,7 +251,7 @@ function compressImage(file, max){
 
 /* ---------- Daten (live) ---------- */
 const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {}, draw: null,
-  people: {}, expenses: {}, scores: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, challenges: {}, wall: {}, songs: {}, polls: {} };
+  people: {}, expenses: {}, scores: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, wall: {}, songs: {}, polls: {} };
 const DEVICE = (() => { let d = ls.get('jga-device', null); if(!d){ d = uid(); ls.set('jga-device', d); } return d; })();
 let ME = ls.get('jga-me', '');
 let tab = ls.get('jga-tab', 'plan'), edit = false, openGame = null, editItem = null;
@@ -294,7 +294,6 @@ R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); }, onE
 R('people').on('value', s => { D.people = s.val() || {}; render(); renderMe(); }, onErr);
 R('expenses').on('value', s => { D.expenses = s.val() || {}; render(); }, onErr);
 R('scores').on('value', s => { D.scores = s.val() || {}; render(); }, onErr);
-R('challenges').on('value', s => { D.challenges = s.val() || {}; if(!s.exists()){ const u = {}; SEED_CHAL.forEach((t,i) => { u[uid()] = {text:t, done:false, order:i}; }); R('challenges').set(u); } render(); }, onErr);
 R('songs').on('value', s => { D.songs = s.val() || {}; render(); }, onErr);
 R('polls').on('value', s => { D.polls = s.val() || {}; render(); }, onErr);
 R('tennisTeams').on('value', s => { D.tennisTeams = s.val() || {}; render(); }, onErr);
@@ -302,7 +301,6 @@ R('tennisResults').on('value', s => { D.tennisResults = s.val() || {}; render();
 R('tennisDraw').on('value', s => { D.tennisDraw = s.val() || null; openGame = null; render(); }, onErr);
 let wallSub = false;
 function subWall(){ if(wallSub) return; wallSub = true; R('wall').on('value', s => { D.wall = s.val() || {}; render(); }, onErr); }
-const SEED_CHAL = ['Ferdi hält eine Rede auf seine Zukünftige (mind. 2 Minuten)', 'Ein Gruppenfoto mit einem echten Tiroler in Tracht', 'Ferdi gewinnt ein Bierpong-Spiel gegen ein Team seiner Wahl', 'Ein Fremder singt mit Ferdi ein Lied in der Kneipe', 'Ferdi bestellt in der Kneipe auf Tirolerisch'];
 const SEED_INFO2 = {title:'Notfall und Treffpunkt', text:'Hüttenadresse: hier eintragen\nNotruf Österreich: 112\nTaxi Innsbruck: +43 512 5311\nLetzte S-Bahn zur Hütte: hier eintragen\nWer verloren geht: Standort in der Gruppe teilen und am Goldenen Dachl warten.'};
 
 function applyHero(){
@@ -574,31 +572,23 @@ function renderQuiz(){
   main.querySelectorAll('[data-qdel]').forEach(b => b.onclick = () => R('quiz/list/' + b.dataset.qdel).remove());
 }
 
-/* ---------- Spaß: Wertung, Challenges, Fotowand, Playlist, Umfragen ---------- */
-const CATS = [['quiz','Quiz'],['pong','Pong'],['tennis','Tennis'],['chal','Aufg.'],['misc','Sonst.']];
+/* ---------- Spaß: Wertung, Fotowand, Playlist, Umfragen ---------- */
+const CATS = [['quiz','Quiz'],['pong','Bierpong'],['tennis','LAG'],['misc','Sonst.']];
 const who = () => ME || 'Jemand';
 function renderFun(){
   const people = peopleList();
   const total = p => CATS.reduce((a,[k]) => a + (+((D.scores[p.id]||{})[k]) || 0), 0);
   const ranked = people.map(p => ({...p, total: total(p)})).sort((a,b) => b.total - a.total || a.name.localeCompare(b.name,'de'));
-  const chals = Object.entries(D.challenges).map(([id,c]) => ({id, ...c})).sort((a,b) => (a.done?1:0)-(b.done?1:0) || (a.order||0)-(b.order||0));
   const wall = Object.entries(D.wall).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
   const songs = Object.entries(D.songs).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
   const polls = Object.entries(D.polls).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
   main.innerHTML = `${editBtn()}
-    <section class="card stack"><div class="sub-h"><h2>Gesamtwertung</h2><span class="muted" style="font-size:13px">Quiz, Bierpong, Tennis, Aufgaben</span></div>
+    <section class="card stack"><div class="sub-h"><h2>Gesamtwertung</h2><span class="muted" style="font-size:13px">Quiz, Bierpong, LAG</span></div>
       ${people.length ? (edit ? `<div class="score"><span></span>${CATS.map(([k,l]) => `<span class="h">${l}</span>`).join('')}<span class="h">Gesamt</span>
         ${ranked.map(p => `<span style="overflow-wrap:anywhere">${esc(p.name)}</span>${CATS.map(([k]) => `<input type="number" inputmode="numeric" data-score="${p.id}" data-cat="${k}" value="${(D.scores[p.id]||{})[k] ?? ''}" placeholder="0">`).join('')}<span class="tot">${p.total}</span>`).join('')}</div>
         <p class="muted" style="font-size:13px">Punkte je Disziplin eintragen, z. B. 3/2/1 für die ersten drei. Wird beim Tippen gespeichert.</p>`
       : ranked.map((p,i) => `<div class="rank ${i<3?'top':''}"><span class="pos">${i+1}.</span><span>${esc(p.name)}<div class="muted" style="font-size:12px">${CATS.filter(([k]) => (D.scores[p.id]||{})[k]).map(([k,l]) => `${l} ${(D.scores[p.id]||{})[k]}`).join(' · ')}</div></span><span class="score-pts" style="font-family:var(--display);font-weight:800;font-size:18px">${p.total}</span></div>`).join(''))
       : '<p class="muted">Sobald Teilnehmer eingetragen sind (Orga → Teilnehmer), erscheint hier die Rangliste.</p>'}
-    </section>
-    <section class="card stack"><div class="sub-h"><h2>Aufgaben für Ferdi</h2><span class="muted" style="font-size:13px">${chals.filter(c => c.done).length} von ${chals.length} geschafft</span></div>
-      ${chals.map(c => `<div class="chal ${c.done?'done':''}"><input type="checkbox" data-cdone="${c.id}" ${c.done?'checked':''} style="width:22px;height:22px;accent-color:var(--pine)">
-        <div><div class="txt">${esc(c.text)}</div>${c.done ? `<div class="muted" style="font-size:12px">Erledigt${c.by ? ' · bestätigt von ' + esc(c.by) : ''}</div>` : ''}${c.img ? `<img src="${c.img}" alt="">` : ''}
-        <div class="row" style="margin-top:4px"><button class="btn small" data-cphoto="${c.id}">${c.img ? 'Beweisfoto ersetzen' : 'Beweisfoto'}</button>${edit ? `<button class="btn small danger" data-cdel="${c.id}">Löschen</button>` : ''}</div></div></div>`).join('')}
-      <div class="row"><input type="text" id="chalNew" class="grow" placeholder="Neue Aufgabe" maxlength="140"><button class="btn primary" id="chalAdd">+</button></div>
-      <input type="file" id="chalFile" accept="image/*" capture="environment" hidden>
     </section>
     <section class="card stack"><div class="sub-h"><h2>Fotowand</h2><div><button class="btn small primary" id="wallAdd">+ Foto</button><input type="file" id="wallFile" accept="image/*" multiple hidden></div></div>
       ${wallSub ? (wall.length ? `<div class="wall">${wall.map(w => `<figure><img src="${w.img}" alt="" loading="lazy"><figcaption>${esc(w.by||'')}${w.at ? ' · ' + new Date(w.at).toLocaleString('de-DE',{weekday:'short',hour:'2-digit',minute:'2-digit'}) : ''}${edit ? ` <button class="btn small danger" data-wdel="${w.id}" style="padding:2px 6px">✕</button>` : ''}</figcaption></figure>`).join('')}</div>` : '<p class="muted">Noch keine Fotos. Alles, was hier landet, sehen alle sofort.</p>') : '<p class="muted">Lädt …</p>'}
@@ -616,12 +606,6 @@ function renderFun(){
     </section>`;
   wireEdit();
   main.querySelectorAll('[data-score]').forEach(inp => inp.oninput = () => { const p = 'scores/' + inp.dataset.score + '/' + inp.dataset.cat; saveSoon(p, p, inp.value === '' ? null : +inp.value); });
-  main.querySelectorAll('[data-cdone]').forEach(c => c.onchange = () => R('challenges/' + c.dataset.cdone).update({done: c.checked, by: c.checked ? who() : null, at: firebase.database.ServerValue.TIMESTAMP}));
-  main.querySelectorAll('[data-cdel]').forEach(b => b.onclick = () => R('challenges/' + b.dataset.cdel).remove());
-  let chalTarget = null;
-  main.querySelectorAll('[data-cphoto]').forEach(b => b.onclick = () => { chalTarget = b.dataset.cphoto; $('#chalFile').click(); });
-  $('#chalFile').onchange = async e => { const f = e.target.files[0]; if(!f || !chalTarget) return; try{ const img = await compressImage(f, 900); await R('challenges/' + chalTarget).update({img, done: true, by: who(), at: firebase.database.ServerValue.TIMESTAMP}); toast('Beweis gespeichert'); }catch(err){ toast(err.message, true); } };
-  $('#chalAdd').onclick = () => { const t = $('#chalNew').value.trim(); if(!t) return; R('challenges/' + uid()).set({text: t, done: false, order: Date.now()}); };
   $('#wallAdd').onclick = () => $('#wallFile').click();
   $('#wallFile').onchange = async e => { const files = Array.from(e.target.files); if(!files.length) return; toast(`${files.length} Foto${files.length===1?'':'s'} werden hochgeladen …`); for(const f of files){ try{ const img = await compressImage(f, 1000); await R('wall/' + uid()).set({img, by: who(), at: firebase.database.ServerValue.TIMESTAMP}); }catch(err){ toast(err.message, true); } } toast('Fotos sind drin'); };
   main.querySelectorAll('[data-wdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('wall/' + b.dataset.wdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
