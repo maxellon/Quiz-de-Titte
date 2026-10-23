@@ -402,6 +402,7 @@ function renderPlan(){
   } else if(now < new Date('2027-05-06T00:00:00+02:00')) nextItem = items[0] || null;
   const cdText = it => { if(!it) return ''; const dIdx = DAYS.findIndex(d=>d[0]===it.day); const t = new Date(`2027-05-0${6+dIdx}T${it.time||'00:00'}:00+02:00`); const m = Math.round((t - now)/60000); if(m < 0) return ''; if(m < 60) return `in ${m} Min.`; if(m < 48*60) return `in ${Math.floor(m/60)} h ${m%60} Min.`; return `in ${Math.round(m/1440)} Tagen`; };
   let html = editBtn();
+  if(edit && D.settings.arrivedAt && etaMode() === 'off') html += `<div class="row"><button class="btn small" id="unarrive">Reiter „Wie lange“ wieder einblenden</button></div>`;
   const before = now < new Date('2027-05-06T00:00:00+02:00'), after = now > new Date('2027-05-08T23:59:00+02:00');
   const days = Math.ceil((new Date('2027-05-06T08:30:00+02:00') - now)/86400000);
   html += `<div class="nowcard">
@@ -428,6 +429,7 @@ function renderPlan(){
     </section>`;
   }
   main.innerHTML = html; wireEdit();
+  if($('#unarrive')) $('#unarrive').onclick = () => R('settings/arrivedAt').remove();
   main.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editItem = b.dataset.edit; render(); });
   main.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const id = uid(); R('schedule/' + id).set({day: b.dataset.add, time:'12:00', title:'Neuer Programmpunkt', place:'', addr:'', note:'', order: 99}); editItem = id; });
   wireItemForm();
@@ -719,7 +721,8 @@ function renderQuiz(){
 /* ---------- Wie lange noch: GPS bis zur Hütte ---------- */
 const OBERESSLINGEN = {lat: 48.7392, lng: 9.3272, name: 'Oberesslingen'};
 /* Phasen: bis Do 17:00 Hinfahrt (Ziel Hütte), dann ausgeblendet, ab Sa 06:00 Rückfahrt (Ziel Oberesslingen) */
-function etaMode(){ const n = Date.now(); if(n < new Date('2027-05-06T17:00:00+02:00').getTime()) return 'hin'; if(n < new Date('2027-05-08T06:00:00+02:00').getTime()) return 'off'; return 'rueck'; }
+/* Hinfahrt endet nicht per Uhrzeit, sondern wenn jemand „Wir sind da“ drückt (oder ein Handy die Hütte auf 300 m erreicht); Rückfahrt ab Sa 06:00 */
+function etaMode(){ const n = Date.now(); if(n >= new Date('2027-05-08T06:00:00+02:00').getTime()) return 'rueck'; if(D.settings.arrivedAt) return 'off'; return 'hin'; }
 let START = OBERESSLINGEN;
 const DEFAULT_DEST = {lat: 47.1311, lng: 11.5403, name: 'Peerhof Navis'};
 const E = { pos: null, watch: null, err: null, route: null, routeAt: 0, total: null, busy: false };
@@ -730,7 +733,7 @@ const hav = (a, b) => { const R = 6371, dl = (b.lat-a.lat)*Math.PI/180, dg = (b.
 async function osrm(a, b){ const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`); const j = await r.json(); if(!j.routes || !j.routes.length) throw new Error('keine Route'); return {km: j.routes[0].distance/1000, min: j.routes[0].duration/60}; }
 function startGps(){
   if(E.watch != null || !navigator.geolocation) return;
-  E.watch = navigator.geolocation.watchPosition(p => { E.pos = {lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, at: Date.now()}; E.err = null; updateRoute(); if(tab === 'eta') render(); },
+  E.watch = navigator.geolocation.watchPosition(p => { E.pos = {lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, at: Date.now()}; E.err = null; if(etaMode() === 'hin' && hav(E.pos, hutDest()) < 0.3 && p.coords.accuracy < 200 && Date.now() > new Date('2027-05-06T00:00:00+02:00').getTime()) R('settings/arrivedAt').set(firebase.database.ServerValue.TIMESTAMP); updateRoute(); if(tab === 'eta') render(); },
     e => { E.err = e.code === 1 ? 'Standort nicht freigegeben. In den Browser-Einstellungen erlauben.' : 'Kein GPS-Signal.'; if(tab === 'eta') render(); }, {enableHighAccuracy: true, maximumAge: 15000, timeout: 20000});
 }
 async function updateRoute(){
@@ -760,11 +763,13 @@ function renderEta(){
       : `<div class="sub" style="padding:14px 0">${E.err ? esc(E.err) : 'Warte auf GPS …'}</div>`}
     </div>
     ${km != null ? `<div class="card yn">Sind wir schon da? ${there ? '<span style="color:var(--ok)">Ja!</span>' : '<span style="color:var(--bad)">Nein.</span>'}</div>` : ''}
+    ${etaMode() === 'hin' ? `<div class="row" style="justify-content:center"><button class="btn" id="arrived">Wir sind da, Reiter ausblenden</button></div>` : ''}
     <p class="muted" style="font-size:13px">Standort nur auf diesem Handy, wird nicht gespeichert. Strecke über OSRM/OpenStreetMap, alle 60 Sekunden neu.${E.pos ? ` Genauigkeit ±${Math.round(E.pos.acc)} m.` : ''}</p>
     ${edit ? `<div class="card stack"><h3>Ziel</h3><p class="muted" style="font-size:14px">Aktuell: ${esc(d.name)} (${d.lat.toFixed(4)}, ${d.lng.toFixed(4)})</p>
       <div class="row"><input type="text" id="destAddr" class="grow" placeholder="Adresse der Hütte" value="${esc(D.settings.dest ? D.settings.dest.name : '')}"><button class="btn primary" id="destSet">Ziel setzen</button></div>
       <p class="muted" style="font-size:13px">Die Adresse gilt für alle. Wird auch im Plan beim Programmpunkt „Ankunft in der Hütte“ als Ort gesetzt, ist sie hier automatisch das Ziel.</p></div>` : ''}`;
   wireEdit();
+  if($('#arrived')) $('#arrived').onclick = () => { const b = $('#arrived'); if(!b.dataset.armed){ b.dataset.armed = 1; b.textContent = 'Wirklich? Für alle Handys bis Samstag ausblenden'; return; } R('settings/arrivedAt').set(firebase.database.ServerValue.TIMESTAMP).then(() => { tab = 'plan'; ls.set('jga-tab', tab); render(); }); };
   if($('#destSet')) $('#destSet').onclick = async () => {
     const q = $('#destAddr').value.trim(); if(!q) return;
     $('#destSet').disabled = true;
