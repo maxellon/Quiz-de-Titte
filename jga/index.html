@@ -272,7 +272,7 @@ const SEED_SCHEDULE = [
   {day:'do', time:'09:00', title:'Zu Fuß zum Frühstück', place:'Frühstückslocation', addr:'', note:'Frühstück bis ca. 11 Uhr'},
   {day:'do', time:'11:00', title:'Bustransfer nach Innsbruck', place:'Bus ab Oberesslingen', addr:'', note:'ca. 4 bis 5 Stunden. Quiz-Runden im Bus!'},
   {day:'do', time:'14:00', title:'Bierpong-Auslosung', place:'Im Bus', addr:'', note:'Alle 8 Teams müssen bis dahin unter „Bierpong“ eingetragen sein. Dann wird live ausgelost.'},
-  {day:'do', time:'16:30', title:'Ankunft in der Hütte', place:'Unsere Hütte', addr:'Oberweg 22, 6145 Navis, Tirol', note:'ca. 16:30 bis 17 Uhr', lat:47.1311, lng:11.5403},
+  {day:'do', time:'16:30', title:'Ankunft in der Hütte', place:'Peerhof, Navis', addr:'Oberweg 22, 6145 Navis, Tirol', note:'ca. 16:30 bis 17 Uhr', lat:47.1311, lng:11.5403},
   {day:'do', time:'19:00', title:'Bierpong-Turnier, Party, Open End', place:'Hütte', addr:'', note:'Turnierbaum unter „Bierpong“'},
   {day:'fr', time:'10:00', title:'Frühstück und LAG-Auslosung', place:'Hütte', addr:'', note:'Alle 8 Teams müssen bis dahin unter „LAG“ eingetragen sein (oder vom Bierpong übernommen). Dann wird live ausgelost.'},
   {day:'fr', time:'11:30', title:'Taxi zum Bahnhof', place:'Hütte → Bahnhof Matrei am Brenner', addr:'Bahnhof Matrei am Brenner, 6143 Matrei am Brenner', note:'Taxis vorbestellen (siehe Notfall-Block). Ca. 15 Minuten ins Tal.', lat:47.1245, lng:11.4535},
@@ -284,7 +284,7 @@ const SEED_SCHEDULE = [
   {day:'sa', time:'10:00', title:'Abfahrt ab Innsbruck, Heimfahrt', place:'Innsbruck', addr:'', note:''},
 ];
 const SEED_INFO = [
-  {title:'Hütte', text:'Adresse: Oberweg 22, 6145 Navis, Tirol\nZufahrt, Schlüsselübergabe, WLAN: hier eintragen.'},
+  {title:'Hütte', text:'Bauernhaus „Peerhof“, Oberweg 22, 6145 Navis (Tirol)\nAirbnb: https://www.airbnb.de/rooms/2570629\nGanzes Haus, bis 15 Gäste · 5 Schlafzimmer, 10 Betten, 5 Bäder\nZimmer 1, 2, 5: Doppelbett + Einzelbetten (2 / 1 / 2) · Zimmer 3, 4: Doppelbett\nKüche komplett, Holzofen und Kachelofen (Holz vorhanden), WLAN, Waschmaschine, Grill, Gartentisch\nParken: kostenlos am Haus, Platz für ca. 5 bis 6 Autos\nStall und Scheune sind tabu\nKurtaxe bar vor Ort (ca. 2 bis 2,60 € pro Person und Nacht)\nGastgeber: Karl (Superhost), Co-Host Matthias · Hausordnung beachten\nCheck-in/Check-out und Ruhezeiten: hier eintragen'},
   {title:'Mitbringen', text:'Hausschuhe, Handtuch, Tennisschläger (falls vorhanden), Sportklamotten, Bargeld für die Kneipentour, Powerbank.'},
   {title:'Wichtige Nummern', text:'Organisation: Max\nNotruf Österreich: 112'},
 ];
@@ -294,7 +294,7 @@ R('schedule').on('value', s => { D.schedule = s.val() || {}; if(!seeded && !s.ex
   else if(!seeded && s.exists() && !Object.values(D.schedule).some(it => /auslosung/i.test(it.title||''))){ seeded = true; R('schedule/' + uid()).set({...SEED_SCHEDULE.find(it => it.title === 'Bierpong-Auslosung'), order: 3}); }
   if(!onErr.lag && s.exists()){ onErr.lag = true; const e = Object.entries(D.schedule).find(([,it]) => it.day === 'fr' && it.time === '10:00' && /^frühstück$/i.test((it.title||'').trim())); if(e) R('schedule/' + e[0]).update({title: 'Frühstück und LAG-Auslosung', note: SEED_SCHEDULE.find(it => it.title === 'Frühstück und LAG-Auslosung').note}); }
   if(!onErr.taxi && s.exists() && !Object.values(D.schedule).some(it => /taxi/i.test(it.title||''))){ onErr.taxi = true; R('schedule/' + uid()).set({...SEED_SCHEDULE.find(it => it.title === 'Taxi zum Bahnhof'), order: 6}); Object.entries(D.schedule).forEach(([id,it]) => { if(it.day === 'fr' && it.time === '12:00' && /aufbruch nach innsbruck/i.test(it.title||'')) R('schedule/' + id).update({title: 'S-Bahn nach Innsbruck', place: 'Ab Bahnhof Matrei am Brenner', note: 'ca. 20 Minuten bis Innsbruck Hbf'}); }); }
-  if(!onErr.hut && s.exists()){ onErr.hut = true; Object.entries(D.schedule).forEach(([id,it]) => { if(/ankunft in der hütte/i.test(it.title||'') && !it.addr) R('schedule/' + id).update({addr: 'Oberweg 22, 6145 Navis, Tirol', lat: 47.1311, lng: 11.5403}); }); }
+  if(!onErr.hut && s.exists()){ onErr.hut = true; Object.entries(D.schedule).forEach(([id,it]) => { if(/ankunft in der hütte/i.test(it.title||'') && (!it.addr || it.place === 'Unsere Hütte')) R('schedule/' + id).update({place: 'Peerhof, Navis', addr: 'Oberweg 22, 6145 Navis, Tirol', lat: it.lat || 47.1311, lng: it.lng || 11.5403}); }); }
   render(); }, onErr);
 R('teams').on('value', s => { D.teams = s.val() || {}; render(); }, onErr);
 R('results').on('value', s => { D.results = s.val() || {}; render(); }, onErr);
@@ -303,6 +303,7 @@ R('quiz').on('value', s => { D.quiz = s.val() || {}; render(); }, onErr);
 R('photos').on('value', s => { D.photos = s.val() || {}; render(); applyHero(); }, onErr);
 R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); }
   else if(!onErr.info2 && !Object.values(D.info).some(b => /notfall/i.test(b.title||''))){ onErr.info2 = true; R('info/' + uid()).set({...SEED_INFO2, order: 99}); }
+  if(!onErr.hut3 && s.exists()){ onErr.hut3 = true; Object.entries(D.info).forEach(([id,b]) => { if(/^hütte$/i.test((b.title||'').trim()) && !/Peerhof/.test(b.text||'')) R('info/' + id + '/text').set(SEED_INFO[0].text); }); }
   if(!onErr.hut2 && s.exists()){ onErr.hut2 = true; Object.entries(D.info).forEach(([id,b]) => { if(/hier eintragen/.test(b.text||'') && /(Hüttenadresse|^Adresse): hier eintragen|^Adresse, Zufahrt/m.test(b.text||'')) R('info/' + id + '/text').set((b.text||'').replace(/Hüttenadresse: hier eintragen/, 'Hüttenadresse: Oberweg 22, 6145 Navis, Tirol').replace(/^Adresse, Zufahrt, Schlüsselübergabe, WLAN: hier eintragen\./, 'Adresse: Oberweg 22, 6145 Navis, Tirol\nZufahrt, Schlüsselübergabe, WLAN: hier eintragen.')); }); }
   render(); }, onErr);
 R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); }, onErr);
@@ -589,7 +590,7 @@ function renderQuiz(){
 
 /* ---------- Wie lange noch: GPS bis zur Hütte ---------- */
 const START = {lat: 48.7392, lng: 9.3272, name: 'Oberesslingen'};
-const DEFAULT_DEST = {lat: 47.1311, lng: 11.5403, name: 'Hütte in Navis'};
+const DEFAULT_DEST = {lat: 47.1311, lng: 11.5403, name: 'Peerhof Navis'};
 const E = { pos: null, watch: null, err: null, route: null, routeAt: 0, total: null, busy: false };
 const dest = () => { const d = D.settings.dest; if(d && d.lat) return d; const h = Object.values(D.schedule).find(it => /hütte/i.test(it.title||'') && it.lat); return h ? {lat: h.lat, lng: h.lng, name: h.place || 'Hütte'} : DEFAULT_DEST; };
 const hav = (a, b) => { const R = 6371, dl = (b.lat-a.lat)*Math.PI/180, dg = (b.lng-a.lng)*Math.PI/180, x = Math.sin(dl/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dg/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
