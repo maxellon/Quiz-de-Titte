@@ -302,8 +302,26 @@ function hostEditor(){
           <div class="correct-pick"><button class="btn ${it.correct==='A'?'on':''}" data-correct="A" data-i="${i}">A</button><button class="btn ${it.correct==='B'?'on':''}" data-correct="B" data-i="${i}">B</button></div></div>
       </div>
     </div>`).join('');
+  const w = q.warmup || PRACTICE;
+  const warm = `
+    <div class="card q">
+      <img class="thumb" src="${w.img}" alt="">
+      <div class="stack">
+        <div class="row between"><span class="num">Aufwärmfrage</span>
+          <div class="row"><button class="btn" id="wimg">Anderes Foto</button><input type="file" id="wfile" accept="image/*" hidden>${q.warmup ? '<button class="btn" id="wreset">Zurück zur Sonne</button>' : ''}</div></div>
+        <label class="field">Fragetext (optional)<input type="text" id="wt" data-wfield="text" value="${esc(w.text)}" placeholder="z. B. Was ist das?"></label>
+        <div class="ab">
+          <div class="opt"><span class="tag a">A</span><input type="text" id="wa" data-wfield="a" value="${esc(w.a)}" placeholder="Antwort A"></div>
+          <div class="opt"><span class="tag b">B</span><input type="text" id="wb" data-wfield="b" value="${esc(w.b)}" placeholder="Antwort B"></div>
+        </div>
+        <div class="row"><span class="muted" style="font-size:14px">Richtig ist:</span>
+          <div class="correct-pick"><button class="btn ${w.correct==='A'?'on':''}" data-wcorrect="A">A</button><button class="btn ${w.correct==='B'?'on':''}" data-wcorrect="B">B</button></div></div>
+      </div>
+    </div>`;
   app.innerHTML = `<div class="wrap">${topbar(`<button class="btn" id="back">Zur Übersicht</button>`)}
     <label class="field">Titel des Quiz<input type="text" id="title" value="${esc(q.title)}" placeholder="z. B. Klassenfahrt 2026"></label>
+    <div class="row between"><h2>Frage 1 zum Aufwärmen</h2><span class="muted">Läuft wie jede Frage, danach werden alle Punkte auf 0 gesetzt</span></div>
+    ${warm}
     <div class="row between"><h2>${q.questions.length} Frage${q.questions.length===1?'':'n'}</h2>
       <div class="row"><button class="btn primary" id="add">Fotos hinzufügen</button><input type="file" id="files" accept="image/*" multiple hidden></div></div>
     <div class="qlist">${items || '<p class="muted">Füge Fotos hinzu. Jedes Foto wird eine Frage mit den Antworten A und B.</p>'}</div>
@@ -315,6 +333,15 @@ function hostEditor(){
   </div>`;
   $('#title').oninput = e => { q.title = e.target.value; saveQuizzesSoon(); };
   $('#back').onclick = () => { saveQuizzes(); hostHome(); };
+  const ownWarm = () => { if(!q.warmup) q.warmup = {...PRACTICE}; return q.warmup; };
+  $('#wimg').onclick = () => $('#wfile').click();
+  $('#wfile').onchange = async e => {
+    const f = e.target.files[0]; if(!f) return;
+    try{ ownWarm().img = await compressImage(f); saveQuizzes(); hostEditor(); }catch(err){ hostToast(err.message, true); }
+  };
+  if($('#wreset')) $('#wreset').onclick = () => { delete q.warmup; saveQuizzes(); hostEditor(); };
+  app.querySelectorAll('[data-wfield]').forEach(inp => inp.oninput = () => { ownWarm()[inp.dataset.wfield] = inp.value; saveQuizzesSoon(); });
+  app.querySelectorAll('[data-wcorrect]').forEach(b => b.onclick = () => { ownWarm().correct = b.dataset.wcorrect; saveQuizzes(); hostEditor(); });
   $('#add').onclick = () => $('#files').click();
   $('#files').onchange = async e => {
     const files = Array.from(e.target.files); if(!files.length) return;
@@ -363,13 +390,15 @@ function hostStartDialog(){
       initDb();
       let code; for(let i=0;i<8;i++){ code = randCode(4); const s = await gref(code).once('value'); if(!s.exists()) break; }
       const questions = q.questions.map(it => ({img: it.img, text: it.text, a: it.a, b: it.b, correct: it.correct}));
+      const wsrc = q.warmup || PRACTICE;
+      const warmup = {img: wsrc.img, text: wsrc.text || '', a: wsrc.a || 'A', b: wsrc.b || 'B', correct: wsrc.correct || 'A'};
       await gref(code).set({
         meta: {createdAt: firebase.database.ServerValue.TIMESTAMP, title: q.title || 'Quiz', n: questions.length},
-        questions,
+        questions, warmup,
         state: {phase: 'lobby', q: -1, seconds: +$('#secs').value, total: questions.length, warmup: true},
       });
       cleanupOldGames();
-      H.code = code; H.questions = questions; ss.set('fq-host-game', code);
+      H.code = code; H.questions = questions; H.warmup = warmup; ss.set('fq-host-game', code);
       hostGame();
     }catch(err){ hostToast('Firebase antwortet nicht: ' + err.message, true); $('#go').disabled = false; }
     H.busy = false;
@@ -389,7 +418,7 @@ async function hostResume(code){
     initDb();
     const s = await gref(code).once('value');
     if(!s.exists()){ ss.del('fq-host-game'); hostHome(); return; }
-    H.code = code; H.questions = s.val().questions || []; hostGame();
+    H.code = code; H.questions = s.val().questions || []; H.warmup = s.val().warmup || PRACTICE; hostGame();
   }catch(err){ hostHome(); hostToast('Spiel konnte nicht geladen werden: ' + err.message, true); }
 }
 
@@ -422,7 +451,7 @@ function hostRender(){
     hostRenderPlayers();
   }
   else if(st.phase === 'question'){
-    const q = st.practice ? PRACTICE : H.questions[st.q];
+    const q = st.practice ? (H.warmup || PRACTICE) : H.questions[st.q];
     app.innerHTML = `<div class="wrap">${head}
       <div class="row between"><h2>${qLabel(st)}</h2><span class="count" id="answered">0 Antworten</span></div>
       ${st.seconds ? `<div class="timer"><i id="tbar" style="width:100%"></i></div>` : ''}
@@ -446,7 +475,7 @@ function hostRender(){
     }
   }
   else if(st.phase === 'reveal'){
-    const q = st.practice ? PRACTICE : H.questions[st.q];
+    const q = st.practice ? (H.warmup || PRACTICE) : H.questions[st.q];
     const res = H.results || {};
     const nA = Object.values(res).filter(x => x.choice==='A').length, nB = Object.values(res).filter(x => x.choice==='B').length;
     const tot = Math.max(1, nA+nB);
@@ -520,7 +549,7 @@ async function hostAsk(i, practice, resetScores){
 async function hostReveal(){
   if(H.busy) return; H.busy = true;
   clearInterval(H.timerId); H.timerId = null;
-  const st = H.state, code = H.code, q = st.practice ? PRACTICE : H.questions[st.q], key = qKey(st);
+  const st = H.state, code = H.code, q = st.practice ? (H.warmup || PRACTICE) : H.questions[st.q], key = qKey(st);
   try{
     const existing = await gref(code, 'results/' + key).once('value');
     if(!existing.exists()){
@@ -615,9 +644,8 @@ function playerGame(){
 }
 function pHead(){ return topbar(`<span class="chip">${esc(P.name)}</span><span class="chip code">${esc(P.code)}</span>`); }
 async function loadQuestion(i){
-  if(i === 'practice') return PRACTICE;
   if(P.cache[i]) return P.cache[i];
-  const q = (await gref(P.code, 'questions/' + i).once('value')).val();
+  const q = (await gref(P.code, i === 'practice' ? 'warmup' : 'questions/' + i).once('value')).val() || (i === 'practice' ? PRACTICE : null);
   if(q) P.cache[i] = q; return q;
 }
 function myScore(){ return (P.players[P.pid] || {}).score || 0; }
@@ -629,7 +657,7 @@ async function playerRender(){
     app.innerHTML = `<div class="app">${pHead()}<div class="spacer"></div>
       <div class="card stack center"><h1>Du bist dabei, ${esc(P.name)}!</h1><p class="muted" id="rk">Warte, bis das Quiz startet …</p></div>
       <div class="spacer"></div></div>`;
-    playerRenderRank(); loadQuestion(0).catch(()=>{});
+    playerRenderRank(); loadQuestion('practice').catch(()=>{}); loadQuestion(0).catch(()=>{});
   }
   else if(st.phase === 'question'){
     const key = qKey(st);
