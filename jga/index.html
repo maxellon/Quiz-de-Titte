@@ -250,7 +250,7 @@ function compressImage(file, max){
 
 /* ---------- Daten (live) ---------- */
 const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {}, draw: null,
-  people: {}, expenses: {}, shopping: {}, scores: {}, challenges: {}, wall: {}, songs: {}, polls: {}, tennis: null };
+  people: {}, expenses: {}, scores: {}, challenges: {}, wall: {}, songs: {}, polls: {}, tennis: null };
 const DEVICE = (() => { let d = ls.get('jga-device', null); if(!d){ d = uid(); ls.set('jga-device', d); } return d; })();
 let ME = ls.get('jga-me', '');
 let tab = ls.get('jga-tab', 'plan'), edit = false, openGame = null, editItem = null;
@@ -291,7 +291,6 @@ R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = 
 R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); }, onErr);
 R('people').on('value', s => { D.people = s.val() || {}; render(); renderMe(); }, onErr);
 R('expenses').on('value', s => { D.expenses = s.val() || {}; render(); }, onErr);
-R('shopping').on('value', s => { D.shopping = s.val() || {}; if(!s.exists()){ const u = {}; SEED_SHOP.forEach((t,i) => { u[uid()] = {text:t, who:'', done:false, order:i}; }); R('shopping').set(u); } render(); }, onErr);
 R('scores').on('value', s => { D.scores = s.val() || {}; render(); }, onErr);
 R('challenges').on('value', s => { D.challenges = s.val() || {}; if(!s.exists()){ const u = {}; SEED_CHAL.forEach((t,i) => { u[uid()] = {text:t, done:false, order:i}; }); R('challenges').set(u); } render(); }, onErr);
 R('songs').on('value', s => { D.songs = s.val() || {}; render(); }, onErr);
@@ -299,7 +298,6 @@ R('polls').on('value', s => { D.polls = s.val() || {}; render(); }, onErr);
 R('tennis').on('value', s => { D.tennis = s.val() || null; render(); }, onErr);
 let wallSub = false;
 function subWall(){ if(wallSub) return; wallSub = true; R('wall').on('value', s => { D.wall = s.val() || {}; render(); }, onErr); }
-const SEED_SHOP = ['Bier (Kasten x6)', 'Bierpong-Becher + Bälle', 'Grillfleisch + Würstchen', 'Brot, Butter, Aufschnitt fürs Frühstück', 'Kaffee', 'Wasser + Softdrinks', 'Müllbeutel', 'Bluetooth-Box'];
 const SEED_CHAL = ['Ferdi hält eine Rede auf seine Zukünftige (mind. 2 Minuten)', 'Ein Gruppenfoto mit einem echten Tiroler in Tracht', 'Ferdi gewinnt ein Bierpong-Spiel gegen ein Team seiner Wahl', 'Ein Fremder singt mit Ferdi ein Lied in der Kneipe', 'Ferdi bestellt in der Kneipe auf Tirolerisch'];
 const SEED_INFO2 = {title:'Notfall und Treffpunkt', text:'Hüttenadresse: hier eintragen\nNotruf Österreich: 112\nTaxi Innsbruck: +43 512 5311\nLetzte S-Bahn zur Hütte: hier eintragen\nWer verloren geht: Standort in der Gruppe teilen und am Goldenen Dachl warten.'};
 
@@ -619,7 +617,7 @@ function renderFun(){
   main.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => R('polls/' + b.dataset.pdel).remove());
 }
 
-/* ---------- Orga: Kasse, Einkaufsliste, Teilnehmer, Tennis ---------- */
+/* ---------- Orga: Kasse, Teilnehmer, Tennis ---------- */
 const eur = n => (Math.round(n*100)/100).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €';
 function settlement(){
   const people = peopleList(); if(!people.length) return {bal: [], moves: []};
@@ -636,7 +634,6 @@ function renderOrga(){
   const people = peopleList();
   const ex = Object.entries(D.expenses).map(([id,e]) => ({id, ...e})).sort((a,b) => (b.at||0)-(a.at||0));
   const st = settlement();
-  const shop = Object.entries(D.shopping).map(([id,e]) => ({id, ...e})).sort((a,b) => (a.done?1:0)-(b.done?1:0) || (a.order||0)-(b.order||0));
   const names = people.map(p => p.name);
   const tn = D.tennis;
   main.innerHTML = `${editBtn()}
@@ -649,10 +646,6 @@ function renderOrga(){
         <div class="editrow"><select id="exPayer">${names.map(n => `<option ${n===ME?'selected':''}>${esc(n)}</option>`).join('')}${names.length ? '' : '<option>Erst Teilnehmer eintragen</option>'}</select><select id="exFor"><option value="all">für alle</option><option value="some">nur für bestimmte …</option></select></div>
         <div class="row" id="exForList" hidden>${names.map(n => `<label class="btn small" style="cursor:pointer"><input type="checkbox" data-exfor="${esc(n)}" style="accent-color:var(--pine)"> ${esc(n)}</label>`).join('')}</div>
         <div><button class="btn primary small" id="exAdd" ${names.length?'':'disabled'}>+ Ausgabe</button></div></div>
-    </section>
-    <section class="card stack"><div class="sub-h"><h2>Einkaufs- und Packliste</h2><span class="muted" style="font-size:13px">${shop.filter(x => x.done).length} von ${shop.length} erledigt</span></div>
-      ${shop.map(x => `<div class="check ${x.done?'done':''}"><input type="checkbox" data-sdone="${x.id}" ${x.done?'checked':''}><div><div class="txt">${esc(x.text)}</div>${x.who ? `<div class="who">${esc(x.who)}</div>` : ''}</div><div class="row">${edit ? `<button class="btn small danger" data-shdel="${x.id}">✕</button>` : ''}</div></div>`).join('')}
-      <div class="row"><input type="text" id="shopNew" class="grow" placeholder="Neuer Punkt" maxlength="80"><button class="btn primary" id="shopAdd">+</button></div>
     </section>
     <section class="card stack"><div class="sub-h"><h2>Teilnehmer</h2><span class="muted" style="font-size:13px">${people.length} Personen</span></div>
       ${people.map(p => edit ? `<div class="editrow" style="padding:6px 0;border-top:1px solid var(--line)"><input type="text" data-person="${p.id}" data-k="name" value="${esc(p.name||'')}" placeholder="Name"><input type="text" data-person="${p.id}" data-k="phone" value="${esc(p.phone||'')}" placeholder="Handy" inputmode="tel"><input type="text" data-person="${p.id}" data-k="bed" value="${esc(p.bed||'')}" placeholder="Zimmer / Bett"><div class="row"><input type="text" class="grow" data-person="${p.id}" data-k="note" value="${esc(p.note||'')}" placeholder="Essen, Allergien, Hinweise"><button class="btn small danger" data-pdel2="${p.id}">✕</button></div></div>`
@@ -671,9 +664,6 @@ function renderOrga(){
     const some = $('#exFor').value === 'some'; const forList = Array.from(main.querySelectorAll('[data-exfor]:checked')).map(c => c.dataset.exfor); if(some && !forList.length) return toast('Für wen? Mindestens eine Person anhaken.', true);
     R('expenses/' + uid()).set({desc, amount, payer: $('#exPayer').value, forAll: !some, for: some ? forList : null, at: firebase.database.ServerValue.TIMESTAMP}).then(() => toast('Eingetragen')).catch(e => toast(e.message, true)); };
   main.querySelectorAll('[data-edel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('expenses/' + b.dataset.edel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
-  main.querySelectorAll('[data-sdone]').forEach(c => c.onchange = () => R('shopping/' + c.dataset.sdone + '/done').set(c.checked));
-  main.querySelectorAll('[data-shdel]').forEach(b => b.onclick = () => R('shopping/' + b.dataset.shdel).remove());
-  $('#shopAdd').onclick = () => { const t = $('#shopNew').value.trim(); if(!t) return; R('shopping/' + uid()).set({text: t, who: '', done: false, order: Date.now()}); };
   $('#personAdd').onclick = () => { const n = $('#personNew').value.trim(); if(!n) return; if(people.some(p => (p.name||'').toLowerCase() === n.toLowerCase())) return toast('Gibt es schon.', true); R('people/' + uid()).set({name: n, at: firebase.database.ServerValue.TIMESTAMP}); };
   main.querySelectorAll('[data-person]').forEach(inp => inp.oninput = () => { const p = 'people/' + inp.dataset.person + '/' + inp.dataset.k; saveSoon(p, p, inp.value.trim()); });
   main.querySelectorAll('[data-pdel2]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('people/' + b.dataset.pdel2).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
