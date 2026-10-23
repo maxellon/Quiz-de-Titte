@@ -1,0 +1,14 @@
+{
+  "rules": {
+    "games": {
+      ".read": "query.orderByChild == 'meta/createdAt' && query.endAt < now - 172800000 && query.limitToFirst <= 20",
+      ".write": false,
+      ".indexOn": ["meta/createdAt"],
+      "$code": {
+        ".read": true,
+        ".write": true,
+        ".validate": "$code.matches(/^[A-Z0-9]{4}$/)"
+      }
+    }
+  }
+}

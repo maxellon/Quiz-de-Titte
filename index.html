@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Foto-Quiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Layout: one column, centered, max 960px for the host, full-height app for the player. */
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --ink:#1B2430; --muted:#5B6878; --line:#D7DDE6;
+  --accent:#1F6F8B; --accent-ink:#FFFFFF;
+  --a:#E2553E; --a-ink:#FFFFFF; --b:#2F6FED; --b-ink:#FFFFFF;
+  --ok:#1E8A5A; --bad:#C23B3B; --soft:#E6EBF2;
+  --display:"Bricolage Grotesque","Rubik",system-ui,sans-serif;
+  --body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14181F; --surface:#1D232C; --ink:#EEF1F5; --muted:#9AA6B5; --line:#2E3745;
+  --accent:#58B3D1; --accent-ink:#0E1116; --a:#F0634B; --b:#5B8DF5; --ok:#3FBF86; --bad:#E06060; --soft:#262E39; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#14181F; --surface:#1D232C; --ink:#EEF1F5; --muted:#9AA6B5; --line:#2E3745;
+  --accent:#58B3D1; --accent-ink:#0E1116; --a:#F0634B; --b:#5B8DF5; --ok:#3FBF86; --bad:#E06060; --soft:#262E39; color-scheme:dark;}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+img{max-width:100%;display:block}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--display);line-height:1.1;margin:0;text-wrap:balance}
+h1{font-size:clamp(28px,5vw,44px);font-weight:800}
+h2{font-size:clamp(20px,3vw,28px);font-weight:700}
+p{margin:0}
+.muted{color:var(--muted)}
+.wrap{max-width:960px;margin:0 auto;padding-block:16px 40px;display:flex;flex-direction:column;gap:20px}
+.app{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;gap:16px;padding-block:14px 24px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.01em}
+.brand b{color:var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--soft);font-weight:500;font-size:14px}
+.chip.code{font-family:var(--display);font-weight:800;letter-spacing:.12em;font-size:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.between{justify-content:space-between}
+.grow{flex:1 1 200px;min-width:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 16px;font-weight:500;cursor:pointer;line-height:1.2}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.big{font-size:18px;padding:14px 22px;border-radius:12px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.icon{padding:8px 10px;font-weight:700}
+input[type=text],input[type=number],select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+label.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500;color:var(--muted)}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.qlist{display:flex;flex-direction:column;gap:12px}
+.q{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:start}
+.q .thumb{width:120px;aspect-ratio:1;max-width:100%;object-fit:cover;border-radius:10px;background:var(--soft)}
+.q .num{font-family:var(--display);font-weight:800;font-size:18px}
+.ab{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{display:grid;grid-template-columns:40px 1fr;align-items:center;gap:10px}
+.tag{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:10px;font-family:var(--display);font-weight:800;font-size:20px;color:#fff}
+.tag.a{background:var(--a)} .tag.b{background:var(--b)}
+.correct-pick{display:flex;gap:6px}
+.correct-pick .btn{padding:8px 12px}
+.correct-pick .btn.on{background:var(--ok);border-color:var(--ok);color:#fff}
+@media (max-width:520px){.q{grid-template-columns:1fr}.q .thumb{width:100%;aspect-ratio:4/3}.ab{grid-template-columns:1fr}}
+
+/* lobby */
+.codebox{font-family:var(--display);font-weight:800;font-size:clamp(44px,12vw,96px);letter-spacing:.18em;line-height:1;text-align:center}
+.qr{display:grid;place-items:center;background:#fff;padding:14px;border-radius:14px;width:fit-content;max-width:100%;margin:0 auto}
+.qr img,.qr canvas{max-width:100%}
+.players{display:flex;flex-wrap:wrap;gap:8px}
+.players .chip{font-size:15px}
+
+/* play */
+.photo{width:100%;max-height:min(62vh,640px);object-fit:contain;border-radius:14px;background:var(--soft)}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.answer{border:0;border-radius:16px;padding:18px;text-align:left;cursor:pointer;display:grid;grid-template-columns:48px 1fr;align-items:center;gap:12px;font-size:clamp(17px,2.4vw,24px);font-weight:700;line-height:1.2;color:#fff;min-height:84px;transition:transform .08s}
+.answer:active{transform:scale(.98)}
+.answer.a{background:var(--a)} .answer.b{background:var(--b)}
+.answer .tag{background:rgba(255,255,255,.22);width:48px;height:48px;font-size:24px}
+.answer:disabled{cursor:default}
+.answer.dim{opacity:.35}
+.answer.win{box-shadow:0 0 0 4px var(--ok)}
+.answer.picked{outline:4px solid var(--ink);outline-offset:3px}
+@media (max-width:520px){.answers{grid-template-columns:1fr}}
+.bar{display:grid;grid-template-columns:40px 1fr 60px;align-items:center;gap:10px}
+.bar .track{height:28px;border-radius:8px;background:var(--soft);overflow:hidden}
+.bar .fill{height:100%;border-radius:8px;transition:width .4s}
+.bar .fill.a{background:var(--a)} .bar .fill.b{background:var(--b)}
+.bar .n{font-family:var(--display);font-weight:800;font-size:20px;text-align:right;font-variant-numeric:tabular-nums}
+.timer{height:8px;border-radius:4px;background:var(--soft);overflow:hidden}
+.timer i{display:block;height:100%;background:var(--accent);transition:width 1s linear}
+.count{font-family:var(--display);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums}
+.verdict{font-family:var(--display);font-weight:800;font-size:clamp(32px,8vw,48px);line-height:1}
+.verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
+.points{font-family:var(--display);font-weight:800;font-size:clamp(40px,10vw,64px);line-height:1;font-variant-numeric:tabular-nums}
+.rank{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.rank:last-child{border-bottom:0}
+.rank .pos{font-family:var(--display);font-weight:800;font-size:22px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rank.top .pos{color:var(--accent)}
+.rank .score{font-family:var(--display);font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
+.rank.me{background:var(--soft);margin:0 -10px;padding-inline:10px;border-radius:10px}
+.podium{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:end}
+.podium .p{text-align:center;border-radius:12px 12px 0 0;padding:14px 8px;color:#fff;background:var(--accent);display:flex;flex-direction:column;gap:4px;min-width:0}
+.podium .p .name{font-weight:700;overflow-wrap:anywhere}
+.podium .p .pts{font-family:var(--display);font-weight:800;font-size:22px}
+.podium .p1{min-height:150px;order:2} .podium .p2{min-height:120px;order:1;opacity:.9} .podium .p3{min-height:95px;order:3;opacity:.8}
+.notice{padding:12px 14px;border-radius:10px;background:var(--soft);font-size:14px}
+.notice.err{background:color-mix(in srgb,var(--bad) 14%,var(--surface));color:var(--bad)}
+.center{text-align:center}
+.spacer{flex:1}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;background:var(--soft);padding:2px 6px;border-radius:6px}
+pre{background:var(--soft);padding:12px;border-radius:10px;overflow-x:auto;font-size:13px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+/* ============================================================
+   FIREBASE-KONFIGURATION
+   Werte aus der Firebase-Konsole eintragen (Projekteinstellungen →
+   Meine Apps → Web-App → "SDK-Konfiguration").
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "HIER_EINTRAGEN",
+  authDomain: "HIER_EINTRAGEN.firebaseapp.com",
+  databaseURL: "https://HIER_EINTRAGEN-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "HIER_EINTRAGEN",
+};
+
+/* ---------- Hilfsfunktionen ---------- */
+const $ = s => document.querySelector(s);
+const app = $('#app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ls = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const ss = {
+  get(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } },
+  set(k, v){ try{ sessionStorage.setItem(k, v); }catch(e){} },
+  del(k){ try{ sessionStorage.removeItem(k); }catch(e){} }
+};
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const randCode = n => Array.from({length:n}, () => CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join('');
+const uid = () => 'p' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+const configOk = () => FIREBASE_CONFIG.databaseURL && !/HIER_EINTRAGEN/.test(FIREBASE_CONFIG.apiKey + FIREBASE_CONFIG.databaseURL);
+const pageUrl = () => location.origin + location.pathname;
+
+let db = null, serverOffset = 0;
+function initDb(){
+  if (db) return db;
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.database();
+  db.ref('.info/serverTimeOffset').on('value', s => { serverOffset = s.val() || 0; });
+  return db;
+}
+const now = () => Date.now() + serverOffset;
+const gref = (code, path='') => db.ref('games/' + code + (path ? '/' + path : ''));
+
+/* Punkte: 100 für richtig plus bis zu 50 Schnelligkeitsbonus */
+function points(elapsedMs, seconds){
+  const limit = (seconds > 0 ? seconds : 30) * 1000;
+  const bonus = Math.max(0, 1 - elapsedMs / limit);
+  return 100 + Math.round(50 * bonus);
+}
+
+/* Bild verkleinern (max. 900 px Kante, JPEG) */
+function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const max = 900;
+      let w = img.width, h = img.height;
+      if (w > h && w > max){ h = Math.round(h * max / w); w = max; }
+      else if (h >= w && h > max){ w = Math.round(w * max / h); h = max; }
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      let q = 0.78, out = c.toDataURL('image/jpeg', q);
+      while (out.length > 190000 && q > 0.45){ q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+      URL.revokeObjectURL(url);
+      resolve(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Bild konnte nicht gelesen werden')); };
+    img.src = url;
+  });
+}
+
+/* ---------- Routing ---------- */
+const params = new URLSearchParams(location.search);
+const joinCode = (params.get('join') || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const isPlayer = params.has('join') || params.has('spieler');
+
+function topbar(right=''){
+  return `<div class="top"><div class="brand">Foto<b>Quiz</b></div><div class="row">${right}</div></div>`;
+}
+
+function showConfigMissing(){
+  app.innerHTML = `<div class="wrap">${topbar()}
+    <div class="card stack">
+      <h1>Firebase fehlt noch</h1>
+      <p>In der Datei <code>index.html</code> steht oben im Script der Block <code>FIREBASE_CONFIG</code>. Dort die Werte aus der Firebase-Konsole eintragen (Projekteinstellungen → Meine Apps → Web-App → SDK-Konfiguration), dann funktioniert die Seite.</p>
+    </div></div>`;
+}
+
+/* ============================================================
+   HOST
+   ============================================================ */
+const H = {
+  quizzes: ls.get('fq-quizzes', []),
+  quiz: null,          // aktuell bearbeitetes Quiz
+  code: null,          // laufendes Spiel
+  questions: [],       // Fragen des laufenden Spiels
+  state: null,
+  players: {},
+  answers: {},
+  unsub: [],
+  timerId: null,
+  busy: false,
+};
+function saveQuizzes(){ if(!ls.set('fq-quizzes', H.quizzes)) hostToast('Speichern im Browser nicht möglich (zu groß oder gesperrt). Exportiere das Quiz als Datei.', true); }
+function hostToast(msg, err){ const n = $('#toast'); if(!n) return; n.hidden = false; n.className = 'notice' + (err?' err':''); n.textContent = msg; clearTimeout(hostToast.t); hostToast.t = setTimeout(()=>{ n.hidden = true; }, 5000); }
+function stopSubs(){ H.unsub.forEach(f => f()); H.unsub = []; clearInterval(H.timerId); H.timerId = null; }
+
+function hostHome(){
+  stopSubs(); H.quiz = null;
+  const list = H.quizzes.map(q => `
+    <div class="row between card" style="padding:12px 14px">
+      <div class="grow"><strong>${esc(q.title || 'Ohne Titel')}</strong><div class="muted" style="font-size:14px">${q.questions.length} Frage${q.questions.length===1?'':'n'}</div></div>
+      <div class="row"><button class="btn" data-edit="${q.id}">Bearbeiten</button><button class="btn primary" data-play="${q.id}">Spielen</button></div>
+    </div>`).join('');
+  const running = ss.get('fq-host-game');
+  app.innerHTML = `<div class="wrap">${topbar(`<a class="btn" href="${pageUrl()}?spieler">Als Spieler beitreten</a>`)}
+    <div><h1>Deine Quizze</h1><p class="muted">Ein Quiz besteht aus Fotos mit je zwei Antworten. Die Spieler kommen per QR-Code dazu und stimmen auf dem Handy ab.</p></div>
+    ${running ? `<div class="notice row between"><span>Ein Spiel mit Code <strong>${esc(running)}</strong> läuft noch.</span><button class="btn primary" id="resume">Spiel fortsetzen</button></div>` : ''}
+    <div class="stack">${list || '<p class="muted">Noch kein Quiz angelegt.</p>'}</div>
+    <div class="row"><button class="btn primary big" id="new">Neues Quiz</button><button class="btn" id="import">Quiz aus Datei laden</button><input type="file" id="importFile" accept="application/json" hidden></div>
+    <div id="toast" class="notice" hidden></div>
+  </div>`;
+  $('#new').onclick = () => { H.quiz = {id: uid(), title: '', questions: []}; H.quizzes.push(H.quiz); hostEditor(); };
+  $('#import').onclick = () => $('#importFile').click();
+  $('#importFile').onchange = e => {
+    const f = e.target.files[0]; if(!f) return;
+    f.text().then(t => {
+      const q = JSON.parse(t);
+      if(!q || !Array.isArray(q.questions)) throw new Error();
+      q.id = uid(); H.quizzes.push(q); saveQuizzes(); hostHome();
+    }).catch(() => hostToast('Die Datei ist kein gültiges Quiz.', true));
+  };
+  app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { H.quiz = H.quizzes.find(q => q.id === b.dataset.edit); hostEditor(); });
+  app.querySelectorAll('[data-play]').forEach(b => b.onclick = () => { H.quiz = H.quizzes.find(q => q.id === b.dataset.play); hostStartDialog(); });
+  if($('#resume')) $('#resume').onclick = () => hostResume(running);
+}
+
+function hostEditor(){
+  const q = H.quiz;
+  const items = q.questions.map((it, i) => `
+    <div class="card q">
+      <img class="thumb" src="${it.img}" alt="">
+      <div class="stack">
+        <div class="row between"><span class="num">Frage ${i+1}</span>
+          <div class="row"><button class="btn icon" data-up="${i}" title="Nach oben" ${i===0?'disabled':''}>↑</button><button class="btn icon" data-down="${i}" title="Nach unten" ${i===q.questions.length-1?'disabled':''}>↓</button><button class="btn icon danger" data-del="${i}" title="Löschen">✕</button></div></div>
+        <label class="field">Fragetext (optional)<input type="text" id="t${i}" data-field="text" data-i="${i}" value="${esc(it.text)}" placeholder="z. B. Wo ist das?"></label>
+        <div class="ab">
+          <div class="opt"><span class="tag a">A</span><input type="text" id="a${i}" data-field="a" data-i="${i}" value="${esc(it.a)}" placeholder="Antwort A"></div>
+          <div class="opt"><span class="tag b">B</span><input type="text" id="b${i}" data-field="b" data-i="${i}" value="${esc(it.b)}" placeholder="Antwort B"></div>
+        </div>
+        <div class="row"><span class="muted" style="font-size:14px">Richtig ist:</span>
+          <div class="correct-pick"><button class="btn ${it.correct==='A'?'on':''}" data-correct="A" data-i="${i}">A</button><button class="btn ${it.correct==='B'?'on':''}" data-correct="B" data-i="${i}">B</button></div></div>
+      </div>
+    </div>`).join('');
+  app.innerHTML = `<div class="wrap">${topbar(`<button class="btn" id="back">Zur Übersicht</button>`)}
+    <label class="field">Titel des Quiz<input type="text" id="title" value="${esc(q.title)}" placeholder="z. B. Klassenfahrt 2026"></label>
+    <div class="row between"><h2>${q.questions.length} Frage${q.questions.length===1?'':'n'}</h2>
+      <div class="row"><button class="btn primary" id="add">Fotos hinzufügen</button><input type="file" id="files" accept="image/*" multiple hidden></div></div>
+    <div class="qlist">${items || '<p class="muted">Füge Fotos hinzu. Jedes Foto wird eine Frage mit den Antworten A und B.</p>'}</div>
+    <div id="toast" class="notice" hidden></div>
+    <div class="row between card">
+      <div class="row"><button class="btn" id="export">Als Datei sichern</button><button class="btn danger" id="delquiz">Quiz löschen</button></div>
+      <button class="btn primary big" id="play" ${q.questions.length?'':'disabled'}>Spiel starten</button>
+    </div>
+  </div>`;
+  $('#title').oninput = e => { q.title = e.target.value; saveQuizzesSoon(); };
+  $('#back').onclick = () => { saveQuizzes(); hostHome(); };
+  $('#add').onclick = () => $('#files').click();
+  $('#files').onchange = async e => {
+    const files = Array.from(e.target.files); if(!files.length) return;
+    hostToast(`${files.length} Foto${files.length===1?'':'s'} werden verarbeitet …`);
+    for (const f of files){
+      try{ const img = await compressImage(f); q.questions.push({img, text:'', a:'', b:'', correct:'A'}); }
+      catch(err){ hostToast(err.message, true); }
+    }
+    saveQuizzes(); hostEditor();
+  };
+  app.querySelectorAll('[data-field]').forEach(inp => inp.oninput = () => { q.questions[+inp.dataset.i][inp.dataset.field] = inp.value; saveQuizzesSoon(); });
+  app.querySelectorAll('[data-correct]').forEach(b => b.onclick = () => { q.questions[+b.dataset.i].correct = b.dataset.correct; saveQuizzes(); hostEditor(); });
+  app.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const i = +b.dataset.up; [q.questions[i-1], q.questions[i]] = [q.questions[i], q.questions[i-1]]; saveQuizzes(); hostEditor(); });
+  app.querySelectorAll('[data-down]').forEach(b => b.onclick = () => { const i = +b.dataset.down; [q.questions[i+1], q.questions[i]] = [q.questions[i], q.questions[i+1]]; saveQuizzes(); hostEditor(); });
+  app.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { q.questions.splice(+b.dataset.del, 1); saveQuizzes(); hostEditor(); });
+  $('#export').onclick = () => {
+    saveQuizzes();
+    const blob = new Blob([JSON.stringify(q)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (q.title || 'quiz').replace(/[^\w\-äöüÄÖÜß ]+/g,'') + '.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  $('#delquiz').onclick = () => {
+    if($('#delquiz').dataset.armed){ H.quizzes = H.quizzes.filter(x => x.id !== q.id); saveQuizzes(); hostHome(); return; }
+    $('#delquiz').dataset.armed = '1'; $('#delquiz').textContent = 'Wirklich löschen?';
+  };
+  $('#play').onclick = () => { saveQuizzes(); hostStartDialog(); };
+}
+function saveQuizzesSoon(){ clearTimeout(saveQuizzesSoon.t); saveQuizzesSoon.t = setTimeout(saveQuizzes, 600); }
+
+function hostStartDialog(){
+  const q = H.quiz;
+  const missing = q.questions.filter(it => !it.a.trim() || !it.b.trim()).length;
+  app.innerHTML = `<div class="wrap">${topbar(`<button class="btn" id="back">Zurück</button>`)}
+    <div class="card stack">
+      <h1>${esc(q.title || 'Quiz')} starten</h1>
+      <p class="muted">${q.questions.length} Fragen${missing?` · bei ${missing} Frage${missing===1?'':'n'} fehlt noch ein Antworttext`:''}</p>
+      <label class="field">Zeit pro Frage
+        <select id="secs"><option value="0">Keine Begrenzung (du löst manuell auf)</option><option value="15">15 Sekunden</option><option value="20" selected>20 Sekunden</option><option value="30">30 Sekunden</option><option value="45">45 Sekunden</option></select></label>
+      <div id="toast" class="notice" hidden></div>
+      <div class="row"><button class="btn primary big" id="go">Spiel eröffnen</button></div>
+    </div></div>`;
+  $('#back').onclick = hostEditor;
+  $('#go').onclick = async () => {
+    if(H.busy) return; H.busy = true; $('#go').disabled = true;
+    try{
+      initDb();
+      let code; for(let i=0;i<8;i++){ code = randCode(4); const s = await gref(code).once('value'); if(!s.exists()) break; }
+      const questions = q.questions.map(it => ({img: it.img, text: it.text, a: it.a, b: it.b, correct: it.correct}));
+      await gref(code).set({
+        meta: {createdAt: firebase.database.ServerValue.TIMESTAMP, title: q.title || 'Quiz', n: questions.length},
+        questions,
+        state: {phase: 'lobby', q: -1, seconds: +$('#secs').value, total: questions.length},
+      });
+      cleanupOldGames();
+      H.code = code; H.questions = questions; ss.set('fq-host-game', code);
+      hostGame();
+    }catch(err){ hostToast('Firebase antwortet nicht: ' + err.message, true); $('#go').disabled = false; }
+    H.busy = false;
+  };
+}
+
+/* Spiele, die älter als zwei Tage sind, aufräumen */
+function cleanupOldGames(){
+  try{
+    db.ref('games').orderByChild('meta/createdAt').endAt(Date.now() - 2*24*3600*1000).limitToFirst(20).once('value')
+      .then(s => { const u = {}; s.forEach(c => { u[c.key] = null; }); if(Object.keys(u).length) db.ref('games').update(u); }).catch(()=>{});
+  }catch(e){}
+}
+
+async function hostResume(code){
+  try{
+    initDb();
+    const s = await gref(code).once('value');
+    if(!s.exists()){ ss.del('fq-host-game'); hostHome(); return; }
+    H.code = code; H.questions = s.val().questions || []; hostGame();
+  }catch(err){ hostHome(); hostToast('Spiel konnte nicht geladen werden: ' + err.message, true); }
+}
+
+function hostGame(){
+  stopSubs();
+  const code = H.code;
+  const r1 = gref(code, 'state'), r2 = gref(code, 'players');
+  const f1 = r1.on('value', s => { H.state = s.val(); if(!H.state){ ss.del('fq-host-game'); hostHome(); return; } hostRender(); });
+  const f2 = r2.on('value', s => { H.players = s.val() || {}; hostRenderPlayers(); });
+  H.unsub.push(() => r1.off('value', f1), () => r2.off('value', f2));
+}
+
+function hostRender(){
+  const st = H.state; if(!st) return;
+  const code = H.code;
+  const head = topbar(`<span class="chip code">${esc(code)}</span><button class="btn" id="quit">Spiel beenden</button>`);
+  if(st.phase === 'lobby'){
+    app.innerHTML = `<div class="wrap">${head}
+      <div class="card stack center">
+        <p class="eyebrow">Mit dem Handy beitreten</p>
+        <div class="codebox">${esc(code)}</div>
+        <div class="qr" id="qr"></div>
+        <p class="muted">QR-Code scannen oder <strong>${esc(pageUrl().replace(/^https?:\/\//,''))}?spieler</strong> öffnen und den Code eingeben</p>
+      </div>
+      <div class="card stack"><div class="row between"><h2 id="pcount">Noch niemand da</h2><button class="btn primary big" id="start">Erste Frage</button></div><div class="players" id="plist"></div></div>
+      <div id="toast" class="notice" hidden></div>
+    </div>`;
+    new QRCode($('#qr'), {text: pageUrl() + '?join=' + code, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M});
+    $('#start').onclick = () => hostAsk(0);
+    hostRenderPlayers();
+  }
+  else if(st.phase === 'question'){
+    const q = H.questions[st.q];
+    app.innerHTML = `<div class="wrap">${head}
+      <div class="row between"><h2>Frage ${st.q+1} von ${st.total}</h2><span class="count" id="answered">0 Antworten</span></div>
+      ${st.seconds ? `<div class="timer"><i id="tbar" style="width:100%"></i></div>` : ''}
+      <img class="photo" src="${q.img}" alt="">
+      ${q.text ? `<h2 class="center">${esc(q.text)}</h2>` : ''}
+      <div class="answers"><div class="answer a"><span class="tag">A</span><span>${esc(q.a)}</span></div><div class="answer b"><span class="tag">B</span><span>${esc(q.b)}</span></div></div>
+      <div class="row between"><span class="muted" id="tleft"></span><button class="btn primary big" id="reveal">Auflösen</button></div>
+      <div id="toast" class="notice" hidden></div>
+    </div>`;
+    $('#reveal').onclick = () => hostReveal();
+    const ra = gref(code, 'answers/' + st.q);
+    const fa = ra.on('value', s => { H.answers = s.val() || {}; const n = Object.keys(H.answers).length; const el = $('#answered'); if(el) el.textContent = `${n} von ${Object.keys(H.players).length} Antworten`; });
+    H.unsub.push(() => ra.off('value', fa));
+    if(st.seconds){
+      const tick = () => {
+        const left = Math.max(0, st.seconds*1000 - (now() - st.startedAt));
+        const b = $('#tbar'), t = $('#tleft'); if(b) b.style.width = (100*left/(st.seconds*1000)) + '%'; if(t) t.textContent = `${Math.ceil(left/1000)} s`;
+        if(left <= 0){ clearInterval(H.timerId); H.timerId = null; hostReveal(); }
+      };
+      tick(); H.timerId = setInterval(tick, 500);
+    }
+  }
+  else if(st.phase === 'reveal'){
+    const q = H.questions[st.q];
+    const res = H.results || {};
+    const nA = Object.values(res).filter(x => x.choice==='A').length, nB = Object.values(res).filter(x => x.choice==='B').length;
+    const tot = Math.max(1, nA+nB);
+    const nRight = Object.values(res).filter(x => x.correct).length;
+    const last = st.q+1 >= st.total;
+    app.innerHTML = `<div class="wrap">${head}
+      <div class="row between"><h2>Frage ${st.q+1} von ${st.total}</h2><span class="count">${nRight} von ${Object.keys(H.players).length} richtig</span></div>
+      <img class="photo" src="${q.img}" alt="" style="max-height:40vh">
+      ${q.text ? `<h2 class="center">${esc(q.text)}</h2>` : ''}
+      <div class="answers"><div class="answer a ${q.correct==='A'?'win':'dim'}"><span class="tag">A</span><span>${esc(q.a)}</span></div><div class="answer b ${q.correct==='B'?'win':'dim'}"><span class="tag">B</span><span>${esc(q.b)}</span></div></div>
+      <div class="card stack">
+        <div class="bar"><span class="tag a">A</span><div class="track"><div class="fill a" style="width:${100*nA/tot}%"></div></div><span class="n">${nA}</span></div>
+        <div class="bar"><span class="tag b">B</span><div class="track"><div class="fill b" style="width:${100*nB/tot}%"></div></div><span class="n">${nB}</span></div>
+      </div>
+      <div class="row between"><button class="btn" id="board">Zwischenstand</button><button class="btn primary big" id="next">${last ? 'Rangliste zeigen' : 'Nächste Frage'}</button></div>
+      <div class="card stack" id="boardBox" hidden><h2>Zwischenstand</h2><div id="ranking"></div></div>
+      <div id="toast" class="notice" hidden></div>
+    </div>`;
+    $('#next').onclick = () => last ? gref(code, 'state').update({phase:'end'}) : hostAsk(st.q+1);
+    $('#board').onclick = () => { const b = $('#boardBox'); b.hidden = !b.hidden; if(!b.hidden) $('#ranking').innerHTML = rankingHtml(H.players, null, 10); };
+    if(!H.results) gref(code, 'results/' + st.q).once('value').then(s => { H.results = s.val() || {}; hostRender(); });
+  }
+  else if(st.phase === 'end'){
+    const sorted = sortPlayers(H.players);
+    const pod = sorted.slice(0,3);
+    app.innerHTML = `<div class="wrap">${head}
+      <h1 class="center">Endstand</h1>
+      <div class="podium">${pod.map((p,i) => `<div class="p p${i+1}"><span class="pts">${i+1}.</span><span class="name">${esc(p.name)}</span><span>${p.score} Punkte</span></div>`).join('')}</div>
+      <div class="card">${rankingHtml(H.players, null, 100)}</div>
+      <div class="row between"><button class="btn" id="again">Gleiches Quiz noch einmal</button><button class="btn danger" id="del">Spiel löschen</button></div>
+      <div id="toast" class="notice" hidden></div>
+    </div>`;
+    $('#again').onclick = () => { H.quiz = H.quizzes.find(x => x.questions.length === H.questions.length) || null; const qq = {title: '', questions: H.questions}; H.quiz = H.quiz || qq; gref(code).remove().catch(()=>{}); ss.del('fq-host-game'); hostStartDialog(); };
+    $('#del').onclick = () => { gref(code).remove().then(() => { ss.del('fq-host-game'); hostHome(); }); };
+  }
+  $('#quit').onclick = () => {
+    const b = $('#quit');
+    if(b.dataset.armed){ gref(code).remove().then(() => { ss.del('fq-host-game'); stopSubs(); hostHome(); }); return; }
+    b.dataset.armed = '1'; b.textContent = 'Wirklich beenden? Daten werden gelöscht';
+  };
+}
+function hostRenderPlayers(){
+  const list = $('#plist'), c = $('#pcount'); if(!list) return;
+  const ps = sortPlayers(H.players);
+  list.innerHTML = ps.map(p => `<span class="chip">${esc(p.name)}</span>`).join('');
+  if(c) c.textContent = ps.length ? `${ps.length} dabei` : 'Noch niemand da';
+}
+function sortPlayers(players){
+  return Object.entries(players || {}).map(([id,p]) => ({id, name: p.name || '?', score: p.score || 0})).sort((x,y) => y.score - x.score || x.name.localeCompare(y.name,'de'));
+}
+function rankingHtml(players, meId, max){
+  const ps = sortPlayers(players);
+  let pos = 0, prev = null;
+  return ps.map((p,i) => { if(p.score !== prev){ pos = i+1; prev = p.score; } return `<div class="rank ${pos<=3?'top':''} ${p.id===meId?'me':''}"><span class="pos">${pos}.</span><span style="overflow-wrap:anywhere">${esc(p.name)}</span><span class="score">${p.score}</span></div>`; }).slice(0,max).join('') || '<p class="muted">Keine Spieler</p>';
+}
+function hostAsk(i){
+  H.results = null; H.answers = {};
+  gref(H.code, 'state').update({phase:'question', q:i, startedAt: firebase.database.ServerValue.TIMESTAMP}).catch(e => hostToast(e.message, true));
+}
+async function hostReveal(){
+  if(H.busy) return; H.busy = true;
+  clearInterval(H.timerId); H.timerId = null;
+  const st = H.state, code = H.code, q = H.questions[st.q];
+  try{
+    const existing = await gref(code, 'results/' + st.q).once('value');
+    if(!existing.exists()){
+      const ans = (await gref(code, 'answers/' + st.q).once('value')).val() || {};
+      const players = (await gref(code, 'players').once('value')).val() || {};
+      const upd = {};
+      for(const [pid, a] of Object.entries(ans)){
+        if(!players[pid]) continue;
+        const correct = a.choice === q.correct;
+        const gained = correct ? points(Math.max(0, (a.at || st.startedAt) - st.startedAt), st.seconds) : 0;
+        upd['results/' + st.q + '/' + pid] = {choice: a.choice, correct, gained};
+        upd['players/' + pid + '/score'] = (players[pid].score || 0) + gained;
+      }
+      upd['state/phase'] = 'reveal';
+      await gref(code).update(upd);
+    } else {
+      await gref(code, 'state').update({phase:'reveal'});
+    }
+    H.results = null;
+  }catch(e){ hostToast('Auflösen fehlgeschlagen: ' + e.message, true); }
+  H.busy = false;
+}
+
+/* ============================================================
+   SPIELER
+   ============================================================ */
+const P = { code: null, pid: null, name: '', state: null, players: {}, cache: {}, unsub: [], timerId: null, result: null };
+function pStop(){ P.unsub.forEach(f => f()); P.unsub = []; clearInterval(P.timerId); P.timerId = null; }
+
+function playerCodeScreen(msg){
+  app.innerHTML = `<div class="app">${topbar()}
+    <div class="spacer"></div>
+    <div class="card stack">
+      <h1>Mitspielen</h1>
+      <label class="field">Spiel-Code<input type="text" id="code" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="K3M7" style="font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:.2em;text-align:center"></label>
+      ${msg ? `<div class="notice err">${esc(msg)}</div>` : ''}
+      <button class="btn primary big" id="go">Weiter</button>
+    </div>
+    <div class="spacer"></div>
+  </div>`;
+  const go = () => { const c = $('#code').value.toUpperCase().replace(/[^A-Z0-9]/g,''); if(c.length === 4) playerNameScreen(c); };
+  $('#go').onclick = go; $('#code').onkeydown = e => { if(e.key === 'Enter') go(); };
+  $('#code').focus();
+}
+
+async function playerNameScreen(code){
+  initDb();
+  let st;
+  try{ st = (await gref(code, 'state').once('value')).val(); }catch(e){ return playerCodeScreen('Keine Verbindung. Prüfe dein Internet.'); }
+  if(!st) return playerCodeScreen(`Kein Spiel mit dem Code ${code} gefunden.`);
+  P.code = code;
+  const saved = ls.get('fq-player-' + code, null);
+  if(saved && saved.pid){
+    const ex = (await gref(code, 'players/' + saved.pid).once('value')).val();
+    if(ex){ P.pid = saved.pid; P.name = ex.name; return playerGame(); }
+  }
+  const lastName = ls.get('fq-name', '');
+  app.innerHTML = `<div class="app">${topbar(`<span class="chip code">${esc(code)}</span>`)}
+    <div class="spacer"></div>
+    <div class="card stack">
+      <h1>Wie heißt du?</h1>
+      <input type="text" id="name" maxlength="20" autocomplete="off" placeholder="Dein Name" value="${esc(lastName)}" style="font-size:20px">
+      <div id="err" class="notice err" hidden></div>
+      <button class="btn primary big" id="go">Beitreten</button>
+    </div>
+    <div class="spacer"></div>
+  </div>`;
+  const go = async () => {
+    const name = $('#name').value.trim().slice(0,20);
+    if(!name){ $('#err').hidden = false; $('#err').textContent = 'Bitte einen Namen eingeben.'; return; }
+    $('#go').disabled = true;
+    try{
+      const taken = Object.values((await gref(code, 'players').once('value')).val() || {}).some(p => (p.name||'').toLowerCase() === name.toLowerCase());
+      if(taken){ $('#err').hidden = false; $('#err').textContent = 'Den Namen hat schon jemand. Nimm einen anderen.'; $('#go').disabled = false; return; }
+      P.pid = uid(); P.name = name;
+      await gref(code, 'players/' + P.pid).set({name, score: 0, joinedAt: firebase.database.ServerValue.TIMESTAMP});
+      ls.set('fq-player-' + code, {pid: P.pid}); ls.set('fq-name', name);
+      playerGame();
+    }catch(e){ $('#err').hidden = false; $('#err').textContent = 'Beitreten fehlgeschlagen: ' + e.message; $('#go').disabled = false; }
+  };
+  $('#go').onclick = go; $('#name').onkeydown = e => { if(e.key === 'Enter') go(); };
+  $('#name').focus();
+}
+
+function playerGame(){
+  pStop();
+  const r1 = gref(P.code, 'state'), r2 = gref(P.code, 'players');
+  const f1 = r1.on('value', s => { const st = s.val(); if(!st){ pStop(); ls.del('fq-player-' + P.code); return playerCodeScreen('Das Spiel wurde beendet.'); } const changed = !P.state || P.state.phase !== st.phase || P.state.q !== st.q; P.state = st; if(changed) playerRender(); });
+  const f2 = r2.on('value', s => { P.players = s.val() || {}; playerRenderRank(); });
+  P.unsub.push(() => r1.off('value', f1), () => r2.off('value', f2));
+}
+function pHead(){ return topbar(`<span class="chip">${esc(P.name)}</span><span class="chip code">${esc(P.code)}</span>`); }
+async function loadQuestion(i){
+  if(P.cache[i]) return P.cache[i];
+  const q = (await gref(P.code, 'questions/' + i).once('value')).val();
+  if(q) P.cache[i] = q; return q;
+}
+function myScore(){ return (P.players[P.pid] || {}).score || 0; }
+function myRank(){ const ps = sortPlayers(P.players); const i = ps.findIndex(p => p.id === P.pid); return {pos: i<0 ? '–' : (ps.findIndex(p => p.score === ps[i].score) + 1), of: ps.length}; }
+
+async function playerRender(){
+  const st = P.state; clearInterval(P.timerId); P.timerId = null;
+  if(st.phase === 'lobby'){
+    app.innerHTML = `<div class="app">${pHead()}<div class="spacer"></div>
+      <div class="card stack center"><h1>Du bist dabei, ${esc(P.name)}!</h1><p class="muted" id="rk">Warte, bis das Quiz startet …</p></div>
+      <div class="spacer"></div></div>`;
+    playerRenderRank(); loadQuestion(0).catch(()=>{});
+  }
+  else if(st.phase === 'question'){
+    app.innerHTML = `<div class="app">${pHead()}<p class="muted">Frage ${st.q+1} von ${st.total} · lädt …</p></div>`;
+    let q; try{ q = await loadQuestion(st.q); }catch(e){}
+    if(!q || P.state !== st) return;
+    const mine = (await gref(P.code, 'answers/' + st.q + '/' + P.pid).once('value')).val();
+    if(P.state !== st) return;
+    app.innerHTML = `<div class="app">${pHead()}
+      <div class="row between"><span class="muted">Frage ${st.q+1} von ${st.total}</span><span class="count" id="tleft"></span></div>
+      ${st.seconds ? `<div class="timer"><i id="tbar" style="width:100%"></i></div>` : ''}
+      <img class="photo" src="${q.img}" alt="" style="max-height:48vh">
+      ${q.text ? `<h2 class="center">${esc(q.text)}</h2>` : ''}
+      <div class="answers" id="ans">
+        <button class="answer a ${mine?.choice==='A'?'picked':''}" data-c="A" ${mine?'disabled':''}><span class="tag">A</span><span>${esc(q.a)}</span></button>
+        <button class="answer b ${mine?.choice==='B'?'picked':''}" data-c="B" ${mine?'disabled':''}><span class="tag">B</span><span>${esc(q.b)}</span></button>
+      </div>
+      <p class="muted center" id="hint">${mine ? 'Antwort abgegeben. Warte auf die Auflösung …' : 'Tippe auf A oder B'}</p>
+    </div>`;
+    app.querySelectorAll('.answer').forEach(b => b.onclick = async () => {
+      app.querySelectorAll('.answer').forEach(x => { x.disabled = true; });
+      b.classList.add('picked');
+      try{ await gref(P.code, 'answers/' + st.q + '/' + P.pid).set({choice: b.dataset.c, at: firebase.database.ServerValue.TIMESTAMP}); $('#hint').textContent = 'Antwort abgegeben. Warte auf die Auflösung …'; }
+      catch(e){ $('#hint').textContent = 'Senden fehlgeschlagen: ' + e.message; app.querySelectorAll('.answer').forEach(x => { x.disabled = false; }); b.classList.remove('picked'); }
+    });
+    if(st.seconds){
+      const tick = () => { const left = Math.max(0, st.seconds*1000 - (now() - st.startedAt)); const b = $('#tbar'), t = $('#tleft'); if(b) b.style.width = (100*left/(st.seconds*1000)) + '%'; if(t) t.textContent = Math.ceil(left/1000) + ' s'; if(left<=0){ clearInterval(P.timerId); app.querySelectorAll('.answer').forEach(x => { x.disabled = true; }); } };
+      tick(); P.timerId = setInterval(tick, 500);
+    }
+    loadQuestion(st.q+1).catch(()=>{});
+  }
+  else if(st.phase === 'reveal'){
+    const q = P.cache[st.q] || await loadQuestion(st.q).catch(()=>null);
+    const res = (await gref(P.code, 'results/' + st.q + '/' + P.pid).once('value')).val();
+    if(P.state !== st) return;
+    const v = !res ? ['bad','Keine Antwort'] : res.correct ? ['ok','Richtig!'] : ['bad','Leider falsch'];
+    app.innerHTML = `<div class="app">${pHead()}
+      <p class="muted">Frage ${st.q+1} von ${st.total}</p>
+      <div class="card stack center">
+        <div class="verdict ${v[0]}">${v[1]}</div>
+        <div class="points">${res && res.gained ? '+' + res.gained : '+0'}</div>
+        ${q ? `<p>Richtig war <strong>${esc(q.correct)}: ${esc(q.correct==='A'?q.a:q.b)}</strong></p>` : ''}
+      </div>
+      <div class="card center" id="rk"></div>
+      <p class="muted center">Warte auf die nächste Frage …</p>
+    </div>`;
+    playerRenderRank(); loadQuestion(st.q+1).catch(()=>{});
+  }
+  else if(st.phase === 'end'){
+    app.innerHTML = `<div class="app">${pHead()}
+      <h1 class="center">Endstand</h1>
+      <div class="card center stack" id="rk"></div>
+      <div class="card" id="list"></div>
+      <button class="btn" id="leave">Verlassen</button>
+    </div>`;
+    $('#leave').onclick = () => { pStop(); ls.del('fq-player-' + P.code); playerCodeScreen(); };
+    playerRenderRank();
+  }
+}
+function playerRenderRank(){
+  const el = $('#rk'); if(!el || !P.state) return;
+  const n = Object.keys(P.players).length;
+  if(P.state.phase === 'lobby'){ el.textContent = n > 1 ? `${n} Spieler sind dabei. Warte, bis das Quiz startet …` : 'Warte, bis das Quiz startet …'; return; }
+  const r = myRank();
+  if(P.state.phase === 'end'){
+    el.innerHTML = `<p class="eyebrow">Dein Platz</p><div class="points">${r.pos}.</div><p>von ${r.of} · ${myScore()} Punkte</p>`;
+    const l = $('#list'); if(l) l.innerHTML = rankingHtml(P.players, P.pid, 100);
+    return;
+  }
+  el.innerHTML = `<span class="eyebrow">Gesamt</span> <strong>${myScore()} Punkte</strong> · Platz ${r.pos} von ${r.of}`;
+}
+
+/* ---------- Start ---------- */
+if(!configOk()){ showConfigMissing(); }
+else if(isPlayer){ if(joinCode.length === 4) playerNameScreen(joinCode); else playerCodeScreen(); }
+else { hostHome(); }
+</script>
+</body>
+</html>
