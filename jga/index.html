@@ -223,6 +223,7 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
   <button class="tab on" data-tab="plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Plan</button>
   <button class="tab" data-tab="map"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Karte</button>
   <button class="tab" data-tab="eta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Wie lange</button>
+  <button class="tab" data-tab="ibk"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 17l-2 4M16 17l2 4M8 7h.01M16 7h.01"/></svg>Innsbruck</button>
   <button class="tab" data-tab="tour"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 12v4M8 20h8M9 16h6"/></svg>Bierpong</button>
   <button class="tab" data-tab="lag"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L20 20M6 6l6 6M4.5 10.5l5-5"/></svg>LAG</button>
   <button class="tab" data-tab="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"/></svg>Quiz</button>
@@ -379,7 +380,7 @@ function render(){
   if(typing()){ pendingRender = true; return; }
   pendingRender = false;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ({plan: renderPlan, map: renderMap, eta: renderEta, tour: renderTour, lag: renderTour, quiz: renderQuiz, fun: renderFun, orga: renderOrga, info: renderInfo})[tab]();
+  ({plan: renderPlan, map: renderMap, eta: renderEta, ibk: renderIbk, tour: renderTour, lag: renderTour, quiz: renderQuiz, fun: renderFun, orga: renderOrga, info: renderInfo})[tab]();
 }
 main.addEventListener('focusout', () => setTimeout(() => { if(pendingRender && !typing()) render(); }, 80));
 function save(path, value){ return R(path).set(value).catch(e => toast(/PERMISSION_DENIED/i.test(e.message) ? 'Speichern abgelehnt: In Firebase fehlen die Regeln für „jga“.' : 'Speichern fehlgeschlagen: ' + e.message, true)); }
@@ -406,8 +407,6 @@ function renderPlan(){
       ${curItem && nextItem ? `<div class="next">Danach ${esc(nextItem.time)} · ${esc(nextItem.title)} <strong>${cdText(nextItem)}</strong></div>` : ''}
     </div>`;
   html += `<div id="wx"></div>`;
-  html += busCard();
-  html += trainCard();
   loadWeather();
   for(const [key, name, date] of DAYS){
     const list = items.filter(it => it.day === key);
@@ -423,7 +422,7 @@ function renderPlan(){
       ${edit ? `<div><button class="btn small primary" data-add="${key}">+ Programmpunkt</button></div>` : ''}
     </section>`;
   }
-  main.innerHTML = html; wireEdit(); wireTrain();
+  main.innerHTML = html; wireEdit();
   main.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editItem = b.dataset.edit; render(); });
   main.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const id = uid(); R('schedule/' + id).set({day: b.dataset.add, time:'12:00', title:'Neuer Programmpunkt', place:'', addr:'', note:'', order: 99}); editItem = id; });
   wireItemForm();
@@ -484,7 +483,7 @@ function busCard(){
   const rows = bus.map(b => { const arr = toMin(b) + BUS_MIN; const conn = train.find(t => toMin(t) >= arr + 3); return {b, arr, conn}; });
   const next = rows.find(r => toMin(r.b) - WALK_MIN >= nowMin);
   const fmt = m => m < 60 ? `in ${m} Min.` : `in ${Math.floor(m/60)} h ${m%60} Min.`;
-  return `<div class="card stack" style="gap:8px"><div class="sub-h"><h3>Hinweg: Bus 580 Navis → Bahnhof Matrei → S-Bahn</h3>${edit ? '<button class="btn small" id="busEdit">Zeiten ändern</button>' : ''}</div>
+  return `<div class="card stack" style="gap:8px"><div class="sub-h"><h2>Hinweg: Hütte → Innsbruck</h2>${edit ? '<button class="btn small" id="busEdit">Zeiten ändern</button>' : ''}</div>
     ${!weekday ? '<div class="notice">Der Bus 580 fährt Mo–Fr. Am Wochenende: Taxi (siehe Hütte).</div>' : ''}
     ${next ? `<div class="train">
       <div class="b"><small>Loslaufen zur Haltestelle</small><div class="v">${toHHMM(toMin(next.b) - WALK_MIN)}</div><small>${fmt(toMin(next.b) - WALK_MIN - nowMin)}</small></div>
@@ -504,7 +503,7 @@ function trainCard(){
   const diff = t => toMin(t) - nowMin;
   const fmt = m => m < 60 ? `in ${m} Min.` : `in ${Math.floor(m/60)} h ${m%60} Min.`;
   const lastGone = toMin(last) < nowMin;
-  return `<div class="card stack" style="gap:8px"><div class="sub-h"><h3>Heimweg: S-Bahn Innsbruck Hbf → Matrei</h3>${edit ? '<button class="btn small" id="trainEdit">Fahrplan ändern</button>' : ''}</div>
+  return `<div class="card stack" style="gap:8px"><div class="sub-h"><h2>Rückweg: Innsbruck → Hütte</h2>${edit ? '<button class="btn small" id="trainEdit">Fahrplan ändern</button>' : ''}</div>
     <div class="train">
       <div class="b"><small>Nächste Bahn</small><div class="v">${next ? next : '–'}</div><small>${next ? fmt(diff(next)) : 'heute keine mehr'}</small></div>
       <div class="b last"><small>Letzte Bahn</small><div class="v">${last}</div><small>${lastGone ? 'ist weg · Nightliner oder Taxi' : fmt(diff(last))}</small></div>
@@ -522,7 +521,32 @@ function wireTrain(){
   if($('#busSave')) $('#busSave').onclick = () => R('settings/train/bus').set($('#busDeps').value).then(() => toast('Busfahrplan gespeichert'));
   if($('#busReset')) $('#busReset').onclick = () => R('settings/train/bus').remove();
 }
-setInterval(() => { if(tab === 'plan' && !typing()) render(); }, 60000);
+setInterval(() => { if((tab === 'plan' || tab === 'ibk') && !typing()) render(); }, 60000);
+
+/* ---------- Innsbruck: Überblick, Hinweg, Rückweg ---------- */
+function renderIbk(){
+  const n = new Date(), nowMin = n.getHours()*60 + n.getMinutes();
+  const bus = busDeps(), train = deps(), night = nightDeps();
+  const nextBus = bus.find(b => toMin(b) - WALK_MIN >= nowMin);
+  const conn = nextBus ? train.find(t => toMin(t) >= toMin(nextBus) + BUS_MIN + 3) : null;
+  const nextTrain = train.find(t => toMin(t) >= nowMin), lastTrain = train[train.length-1];
+  const fmt = m => m <= 0 ? 'jetzt' : m < 60 ? `in ${m} Min.` : `in ${Math.floor(m/60)} h ${m%60} Min.`;
+  const row = (l, v, sub) => `<div class="row between" style="padding:7px 0;border-top:1px solid var(--line)"><span>${l}</span><span style="text-align:right"><strong style="font-family:var(--display);font-size:18px;font-variant-numeric:tabular-nums">${v}</strong>${sub ? `<div class="muted" style="font-size:12px">${sub}</div>` : ''}</span></div>`;
+  const fri = Object.values(D.schedule).filter(it => it.day === 'fr').sort((a,b) => (a.time||'').localeCompare(b.time||''));
+  main.innerHTML = `${editBtn()}
+    <div class="card stack" style="gap:4px"><div class="sub-h"><h2>Auf einen Blick</h2><span class="count">${toHHMM(nowMin)} Uhr</span></div>
+      ${row('Nächster Bus ab Navis (580)', nextBus || '–', nextBus ? `loslaufen ${toHHMM(toMin(nextBus) - WALK_MIN)} · ${fmt(toMin(nextBus) - WALK_MIN - nowMin)}` : 'heute keiner mehr im Fahrplan')}
+      ${row('Anschluss-S-Bahn ab Matrei', conn || '–', conn ? `an Innsbruck Hbf ca. ${toHHMM(toMin(conn)+16)}` : '')}
+      ${row('Nächste S-Bahn Innsbruck → Matrei', nextTrain || '–', nextTrain ? fmt(toMin(nextTrain) - nowMin) : 'heute keine mehr')}
+      ${row('Letzte S-Bahn Innsbruck → Matrei', lastTrain, toMin(lastTrain) < nowMin ? 'ist weg' : fmt(toMin(lastTrain) - nowMin))}
+      ${row('Nightliner 560N (nur Fr/Sa-Nacht)', night.join(' · '), 'ab Innsbruck bis Matrei, dann Taxi · Zeiten prüfen')}
+      ${fri.length ? `<details style="margin-top:6px"><summary class="muted" style="cursor:pointer;font-size:14px">Freitagsplan</summary>${fri.map(it => `<div class="row" style="padding:4px 0;font-size:14px"><strong style="width:48px">${esc(it.time||'')}</strong><span>${esc(it.title)}${it.place ? ` <span class="muted">· ${esc(it.place)}</span>` : ''}</span></div>`).join('')}</details>` : ''}
+    </div>
+    ${busCard()}
+    ${trainCard()}
+    <div class="card"><h3>Taxis</h3><div class="taxi" style="margin-top:8px">${TAXIS.map(([nm,t,w]) => `<div>${esc(nm)}<small>${esc(w)}</small></div><a href="tel:${t.replace(/\s/g,'')}">${esc(t)}</a>`).join('')}</div></div>`;
+  wireEdit(); wireTrain();
+}
 
 /* Wetter Innsbruck (Open-Meteo, kostenlos, ohne Schlüssel; Vorhersage erst ab ca. 16 Tage vorher) */
 let wxCache = null, wxAt = 0;
