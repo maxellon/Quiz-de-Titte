@@ -284,7 +284,7 @@ const SEED_SCHEDULE = [
   {day:'sa', time:'10:00', title:'Abfahrt ab Innsbruck, Heimfahrt', place:'Innsbruck', addr:'', note:''},
 ];
 const SEED_INFO = [
-  {title:'Hütte', text:'Bauernhaus „Peerhof“, Oberweg 22, 6145 Navis (Tirol)\nAirbnb: https://www.airbnb.de/rooms/2570629\nGanzes Haus, bis 15 Gäste · 5 Schlafzimmer, 10 Betten, 5 Bäder\nZimmer 1, 2, 5: Doppelbett + Einzelbetten (2 / 1 / 2) · Zimmer 3, 4: Doppelbett\nKüche komplett, Holzofen und Kachelofen (Holz vorhanden), WLAN, Waschmaschine, Grill, Gartentisch\nParken: kostenlos am Haus, Platz für ca. 5 bis 6 Autos\nStall und Scheune sind tabu\nKurtaxe bar vor Ort (ca. 2 bis 2,60 € pro Person und Nacht)\nGastgeber: Karl (Superhost), Co-Host Matthias · Hausordnung beachten\nCheck-in/Check-out und Ruhezeiten: hier eintragen'},
+  {title:'Hütte', text:'Bauernhaus „Peerhof“, Oberweg 22, 6145 Navis (Tirol)\nAirbnb: https://www.airbnb.de/rooms/2570629\nStall und Scheune sind tabu\nKurtaxe bar vor Ort (ca. 2 bis 2,60 € pro Person und Nacht)\nGastgeber: Karl (Superhost), Co-Host Matthias · Hausordnung beachten\nCheck-in/Check-out und Ruhezeiten: hier eintragen'},
   {title:'Mitbringen', text:'Hausschuhe, Handtuch, Tennisschläger (falls vorhanden), Sportklamotten, Bargeld für die Kneipentour, Powerbank.'},
   {title:'Wichtige Nummern', text:'Organisation: Max\nNotruf Österreich: 112'},
 ];
@@ -303,7 +303,7 @@ R('quiz').on('value', s => { D.quiz = s.val() || {}; render(); }, onErr);
 R('photos').on('value', s => { D.photos = s.val() || {}; render(); applyHero(); }, onErr);
 R('info').on('value', s => { D.info = s.val() || {}; if(!s.exists()){ const u = {}; SEED_INFO.forEach((it,i) => { u[uid()] = {...it, order:i}; }); R('info').set(u); }
   else if(!onErr.info2 && !Object.values(D.info).some(b => /notfall/i.test(b.title||''))){ onErr.info2 = true; R('info/' + uid()).set({...SEED_INFO2, order: 99}); }
-  if(!onErr.hut3 && s.exists()){ onErr.hut3 = true; Object.entries(D.info).forEach(([id,b]) => { if(/^hütte$/i.test((b.title||'').trim()) && !/Peerhof/.test(b.text||'')) R('info/' + id + '/text').set(SEED_INFO[0].text); }); }
+  if(!onErr.hut3 && s.exists()){ onErr.hut3 = true; Object.entries(D.info).forEach(([id,b]) => { if(/^hütte$/i.test((b.title||'').trim()) && (!/Peerhof/.test(b.text||'') || /Ganzes Haus, bis 15/.test(b.text||''))) R('info/' + id + '/text').set(SEED_INFO[0].text); }); }
   if(!onErr.hut2 && s.exists()){ onErr.hut2 = true; Object.entries(D.info).forEach(([id,b]) => { if(/hier eintragen/.test(b.text||'') && /(Hüttenadresse|^Adresse): hier eintragen|^Adresse, Zufahrt/m.test(b.text||'')) R('info/' + id + '/text').set((b.text||'').replace(/Hüttenadresse: hier eintragen/, 'Hüttenadresse: Oberweg 22, 6145 Navis, Tirol').replace(/^Adresse, Zufahrt, Schlüsselübergabe, WLAN: hier eintragen\./, 'Adresse: Oberweg 22, 6145 Navis, Tirol\nZufahrt, Schlüsselübergabe, WLAN: hier eintragen.')); }); }
   render(); }, onErr);
 R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); }, onErr);
