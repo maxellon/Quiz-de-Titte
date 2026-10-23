@@ -244,7 +244,8 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
   <button class="tab" data-tab="lag"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L20 20M6 6l6 6M4.5 10.5l5-5"/></svg>LAG</button>
   <button class="tab" data-tab="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"/></svg>Quiz</button>
   <button class="tab" data-tab="photos"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Fotos</button>
-  <button class="tab" data-tab="fun"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>Spaß</button>
+  <button class="tab" data-tab="wertung"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V10M12 20V4M18 20v-7"/></svg>Teamwertung</button>
+  <button class="tab" data-tab="musik"><svg viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Musik</button>
   <button class="tab" data-tab="orga"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>Orga</button>
   <button class="tab" data-tab="map"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Karte</button>
 </div></nav>
@@ -288,10 +289,10 @@ function compressImage(file, max){
 
 /* ---------- Daten (live) ---------- */
 const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {}, draw: null,
-  people: {}, expenses: {}, scores: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, wall: {}, songs: {}, polls: {} };
+  people: {}, expenses: {}, scores: {}, teamScores: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, wall: {}, songs: {}, polls: {} };
 const DEVICE = (() => { let d = ls.get('jga-device', null); if(!d){ d = uid(); ls.set('jga-device', d); } return d; })();
 let ME = ls.get('jga-me', '');
-let tab = ls.get('jga-tab', 'plan'), edit = false, openGame = null, editItem = null;
+let tab = ls.get('jga-tab', 'plan'),  edit = false, openGame = null, editItem = null;
 const DAYS = [['do','Donnerstag','6. Mai'],['fr','Freitag','7. Mai'],['sa','Samstag','8. Mai']];
 const SEED_SCHEDULE = [
   {day:'do', time:'08:30', title:'Treffpunkt', place:'Park-and-Ride Oberesslingen', addr:'P+R Bahnhof Oberesslingen, Esslingen am Neckar', note:''},
@@ -341,7 +342,7 @@ R('settings').on('value', s => { D.settings = s.val() || {}; applyHero(); render
 const SEED_PEOPLE = [['Alex','+49 162 2303116'],['Sven','+49 176 47720397'],['Max','+49 163 3936728']];
 R('people').on('value', s => { D.people = s.val() || {}; if(!onErr.ppl){ onErr.ppl = true; SEED_PEOPLE.forEach(([n,ph]) => { const ex = Object.entries(D.people).find(([,p]) => (p.name||'').toLowerCase() === n.toLowerCase()); if(!ex) R('people/' + uid()).set({name: n, phone: ph, at: firebase.database.ServerValue.TIMESTAMP}); else if(!ex[1].phone) R('people/' + ex[0] + '/phone').set(ph); }); } render(); renderMe(); }, onErr);
 R('expenses').on('value', s => { D.expenses = s.val() || {}; render(); }, onErr);
-R('scores').on('value', s => { D.scores = s.val() || {}; render(); }, onErr);
+R('teamScores').on('value', s => { D.teamScores = s.val() || {}; render(); }, onErr);
 R('songs').on('value', s => { D.songs = s.val() || {}; render(); }, onErr);
 R('polls').on('value', s => { D.polls = s.val() || {}; render(); }, onErr);
 R('tennisTeams').on('value', s => { D.tennisTeams = s.val() || {}; render(); }, onErr);
@@ -363,8 +364,8 @@ function countdown(){
 countdown(); setInterval(countdown, 60000);
 
 /* ---------- Tabs ---------- */
-$('#tabs').onclick = e => { const b = e.target.closest('.tab'); if(!b) return; tab = b.dataset.tab; ls.set('jga-tab', tab); edit = false; openGame = null; editItem = null; if(tab === 'fun' || tab === 'photos') subWall(); render(); b.scrollIntoView({inline:'center', block:'nearest'}); };
-if(tab === 'fun' || tab === 'photos') subWall();
+$('#tabs').onclick = e => { const b = e.target.closest('.tab'); if(!b) return; tab = b.dataset.tab; ls.set('jga-tab', tab); edit = false; openGame = null; editItem = null; if(tab === 'photos') subWall(); render(); b.scrollIntoView({inline:'center', block:'nearest'}); };
+if(tab === 'photos') subWall();
 /* Ich bin … */
 const peopleList = () => Object.entries(D.people).map(([id,p]) => ({id, ...p})).sort((a,b) => (a.name||'').localeCompare(b.name||'', 'de'));
 function renderMe(){ $('#meBtn').textContent = ME ? `Ich: ${ME}` : 'Ich bin …'; }
@@ -398,7 +399,7 @@ function render(){
   pendingRender = false;
   syncEta();
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ({plan: renderPlan, map: renderMap, eta: renderEta, ibk: renderIbk, tour: renderTour, lag: renderTour, quiz: renderQuiz, fun: renderFun, photos: renderPhotos, orga: renderOrga, info: renderInfo})[tab]();
+  ({plan: renderPlan, map: renderMap, eta: renderEta, ibk: renderIbk, tour: renderTour, lag: renderTour, quiz: renderQuiz, wertung: renderWertung, musik: renderMusik, photos: renderPhotos, orga: renderOrga, info: renderInfo})[tab]();
 }
 main.addEventListener('focusout', () => setTimeout(() => { if(pendingRender && !typing()) render(); }, 80));
 function save(path, value){ return R(path).set(value).catch(e => toast(/PERMISSION_DENIED/i.test(e.message) ? 'Speichern abgelehnt: In Firebase fehlen die Regeln für „jga“.' : 'Speichern fehlgeschlagen: ' + e.message, true)); }
@@ -826,23 +827,31 @@ function renderPhotos(){
   main.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R('wall/' + b.dataset.pdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
 }
 
-/* ---------- Spaß: Wertung, Playlist, Umfragen ---------- */
-const CATS = [['quiz','Quiz'],['pong','Bierpong'],['tennis','LAG'],['misc','Sonst.']];
 const who = () => ME || 'Jemand';
-function renderFun(){
-  const people = peopleList();
-  const total = p => CATS.reduce((a,[k]) => a + (+((D.scores[p.id]||{})[k]) || 0), 0);
-  const ranked = people.map(p => ({...p, total: total(p)})).sort((a,b) => b.total - a.total || a.name.localeCompare(b.name,'de'));
+/* ---------- Teamwertung: Punkte je Team über Quiz, Bierpong, LAG ---------- */
+const CATS = [['quiz','Quiz'],['pong','Bierpong'],['tennis','LAG'],['misc','Sonst.']];
+function renderWertung(){
+  const teams = Object.entries(D.teams || {}).map(([id,t]) => ({id, ...t})).filter(t => t.name || t.p1).sort((a,b) => (a.at||0)-(b.at||0));
+  const total = t => CATS.reduce((a,[k]) => a + (+((D.teamScores[t.id]||{})[k]) || 0), 0);
+  const ranked = teams.map(t => ({...t, total: total(t), label: t.name || t.p1, sub: t.name ? [t.p1,t.p2].filter(Boolean).join(' & ') : (t.p2||'')})).sort((a,b) => b.total - a.total || a.label.localeCompare(b.label,'de'));
+  let pos = 0, prev = null;
+  main.innerHTML = `${editBtn('Punkte eintragen')}
+    <section class="card stack"><div class="sub-h"><h2>Teamwertung</h2><span class="muted" style="font-size:13px">Quiz · Bierpong · LAG</span></div>
+      ${teams.length ? (edit ? `<div class="score"><span></span>${CATS.map(([k,l]) => `<span class="h">${l}</span>`).join('')}<span class="h">Gesamt</span>
+        ${ranked.map(t => `<span style="overflow-wrap:anywhere">${esc(t.label)}</span>${CATS.map(([k]) => `<input type="number" inputmode="numeric" data-tscore="${t.id}" data-cat="${k}" value="${(D.teamScores[t.id]||{})[k] ?? ''}" placeholder="0">`).join('')}<span class="tot">${t.total}</span>`).join('')}</div>
+        <p class="muted" style="font-size:13px">Punkte je Disziplin, z. B. 8 für Platz 1 bis 1 für Platz 8. Wird beim Tippen gespeichert.</p>`
+      : ranked.map((t,i) => { if(t.total !== prev){ pos = i+1; prev = t.total; } return `<div class="rank ${pos<=3?'top':''}"><span class="pos">${pos}.</span><span><strong>${esc(t.label)}</strong><div class="muted" style="font-size:12px">${esc(t.sub)}${t.sub ? ' · ' : ''}${CATS.filter(([k]) => (D.teamScores[t.id]||{})[k]).map(([k,l]) => `${l} ${(D.teamScores[t.id]||{})[k]}`).join(' · ') || 'noch keine Punkte'}</div></span><span style="font-family:var(--display);font-weight:800;font-size:20px;font-variant-numeric:tabular-nums">${t.total}</span></div>`; }).join(''))
+      : '<p class="muted">Sobald Teams beim Bierpong eingetragen sind, erscheinen sie hier.</p>'}
+    </section>`;
+  wireEdit();
+  main.querySelectorAll('[data-tscore]').forEach(inp => inp.oninput = () => { const p = 'teamScores/' + inp.dataset.tscore + '/' + inp.dataset.cat; saveSoon(p, p, inp.value === '' ? null : +inp.value); });
+}
+
+/* ---------- Musik: Playlist-Wünsche und Umfragen ---------- */
+function renderMusik(){
   const songs = Object.entries(D.songs).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
   const polls = Object.entries(D.polls).map(([id,w]) => ({id, ...w})).sort((a,b) => (b.at||0)-(a.at||0));
   main.innerHTML = `${editBtn()}
-    <section class="card stack"><div class="sub-h"><h2>Gesamtwertung</h2><span class="muted" style="font-size:13px">Quiz, Bierpong, LAG</span></div>
-      ${people.length ? (edit ? `<div class="score"><span></span>${CATS.map(([k,l]) => `<span class="h">${l}</span>`).join('')}<span class="h">Gesamt</span>
-        ${ranked.map(p => `<span style="overflow-wrap:anywhere">${esc(p.name)}</span>${CATS.map(([k]) => `<input type="number" inputmode="numeric" data-score="${p.id}" data-cat="${k}" value="${(D.scores[p.id]||{})[k] ?? ''}" placeholder="0">`).join('')}<span class="tot">${p.total}</span>`).join('')}</div>
-        <p class="muted" style="font-size:13px">Punkte je Disziplin eintragen, z. B. 3/2/1 für die ersten drei. Wird beim Tippen gespeichert.</p>`
-      : ranked.map((p,i) => `<div class="rank ${i<3?'top':''}"><span class="pos">${i+1}.</span><span>${esc(p.name)}<div class="muted" style="font-size:12px">${CATS.filter(([k]) => (D.scores[p.id]||{})[k]).map(([k,l]) => `${l} ${(D.scores[p.id]||{})[k]}`).join(' · ')}</div></span><span class="score-pts" style="font-family:var(--display);font-weight:800;font-size:18px">${p.total}</span></div>`).join(''))
-      : '<p class="muted">Sobald Teilnehmer eingetragen sind (Orga → Teilnehmer), erscheint hier die Rangliste.</p>'}
-    </section>
     <section class="card stack"><div class="sub-h"><h2>Playlist-Wünsche</h2><span class="muted" style="font-size:13px">für Bus und Hütte</span></div>
       ${songs.map(x => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div class="grow"><strong>${esc(x.title)}</strong>${x.artist ? ` <span class="muted">· ${esc(x.artist)}</span>` : ''}<div class="muted" style="font-size:12px">${esc(x.by||'')}</div></div>${edit ? `<button class="btn small danger" data-sdel="${x.id}">✕</button>` : ''}</div>`).join('') || '<p class="muted">Noch keine Wünsche.</p>'}
       <div class="editrow"><input type="text" id="songT" placeholder="Titel" maxlength="60"><input type="text" id="songA" placeholder="Interpret" maxlength="60"></div><div><button class="btn primary small" id="songAdd">+ Wunsch</button></div>
@@ -855,7 +864,6 @@ function renderFun(){
       <div class="stack" style="gap:6px;margin-top:6px"><input type="text" id="pollQ" placeholder="Frage, z. B. Pizza oder Burger?" maxlength="100"><input type="text" id="pollO" placeholder="Antworten, mit Komma getrennt" maxlength="200"><div><button class="btn primary small" id="pollAdd">+ Umfrage</button></div></div>
     </section>`;
   wireEdit();
-  main.querySelectorAll('[data-score]').forEach(inp => inp.oninput = () => { const p = 'scores/' + inp.dataset.score + '/' + inp.dataset.cat; saveSoon(p, p, inp.value === '' ? null : +inp.value); });
   $('#songAdd').onclick = () => { const t = $('#songT').value.trim(); if(!t) return; R('songs/' + uid()).set({title: t, artist: $('#songA').value.trim(), by: who(), at: firebase.database.ServerValue.TIMESTAMP}); };
   main.querySelectorAll('[data-sdel]').forEach(b => b.onclick = () => R('songs/' + b.dataset.sdel).remove());
   $('#pollAdd').onclick = () => { const q = $('#pollQ').value.trim(), o = $('#pollO').value.split(',').map(x => x.trim()).filter(Boolean); if(!q || o.length < 2) return toast('Frage und mindestens zwei Antworten eintragen.', true); R('polls/' + uid()).set({q, options: o, votes: {}, at: firebase.database.ServerValue.TIMESTAMP}); };
@@ -937,6 +945,7 @@ function renderInfo(){
   if($('#addInfo')) $('#addInfo').onclick = () => R('info/' + uid()).set({title:'Neuer Block', text:'', order: Date.now()});
 }
 
+if(tab === 'fun') tab = 'musik';
 render();
 </script>
 </body>
