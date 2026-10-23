@@ -510,7 +510,7 @@ function renderTour(){
         <div class="row between"><h3>Angemeldete Teams <span class="muted" style="font-weight:400">${teams.length} von 8</span></h3></div>
         ${regList || '<p class="muted">Noch kein Team eingetragen. Jedes Team trägt sich unten selbst ein.</p>'}
         <div class="notice">${T.note}</div>
-        <div class="row"><button class="btn amber" id="drawBtn" ${teams.length === 8 ? '' : 'disabled'}>${teams.length === 8 ? 'Auslosen' : `Auslosen (noch ${8 - teams.length} Team${8-teams.length===1?'':'s'} fehlen)`}</button></div>
+        <div class="row">${T === TOURS.lag && Object.keys(D.teams || {}).length ? `<button class="btn" id="copyTeams">Teams vom Bierpong übernehmen</button>` : ''}<button class="btn amber" id="drawBtn" ${teams.length === 8 ? '' : 'disabled'}>${teams.length === 8 ? 'Auslosen' : `Auslosen (noch ${8 - teams.length} Team${8-teams.length===1?'':'s'} fehlen)`}</button></div>
       </div>
       ${editing ? regForm(editing) : (teams.length < 8 ? regForm() : '')}`
     : `${animating ? '<div class="notice" style="text-align:center;font-weight:700">Auslosung läuft …</div>' : ''}
@@ -536,6 +536,11 @@ function renderTour(){
   if($('#tcancel')) $('#tcancel').onclick = () => { editItem = null; render(); };
   main.querySelectorAll('[data-tedit]').forEach(b => b.onclick = () => { editItem = b.dataset.tedit; render(); });
   main.querySelectorAll('[data-tdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R(T.teams + '/' + b.dataset.tdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
+  if($('#copyTeams')) $('#copyTeams').onclick = () => {
+    const b = $('#copyTeams'); if(teams.length && !b.dataset.armed){ b.dataset.armed = 1; b.textContent = 'Vorhandene LAG-Teams werden ersetzt. Wirklich?'; return; }
+    const src = Object.entries(D.teams || {}).filter(([,t]) => t.name || t.p1); const u = {}; src.forEach(([id,t]) => { u[id] = {name: t.name || '', p1: t.p1 || '', p2: t.p2 || '', at: t.at || 0}; });
+    R(T.teams).set(u).then(() => toast(`${src.length} Teams übernommen`)).catch(e => toast(e.message, true));
+  };
   if($('#drawBtn')) $('#drawBtn').onclick = () => {
     const b = $('#drawBtn'); if(!b.dataset.armed){ b.dataset.armed = 1; b.textContent = 'Jetzt wirklich auslosen?'; return; }
     const ids = teamList().map(t => t.id); for(let i = ids.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
