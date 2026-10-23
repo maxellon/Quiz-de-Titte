@@ -340,12 +340,23 @@ $('#meBtn').onclick = () => {
   const names = peopleList().map(p => p.name).filter(Boolean);
   main.insertAdjacentHTML('afterbegin', `<div class="card stack" id="meBox"><h3>Wer bist du?</h3><p class="muted" style="font-size:14px">Damit Fotos, Stimmen und Ausgaben deinen Namen tragen. Wird nur auf diesem Handy gemerkt.</p>
     <div class="row">${names.map(n => `<button class="btn small ${n===ME?'primary':''}" data-me="${esc(n)}">${esc(n)}</button>`).join('')}</div>
-    <div class="row"><input type="text" id="meName" class="grow" placeholder="Oder Namen eintippen" value="${esc(ME)}" maxlength="20"><button class="btn primary" id="meSave">OK</button></div></div>`);
-  main.querySelectorAll('[data-me]').forEach(b => b.onclick = () => setMe(b.dataset.me));
-  $('#meSave').onclick = () => setMe($('#meName').value.trim());
+    <div class="editrow"><input type="text" id="meName" placeholder="Oder Namen eintippen" value="${esc(ME)}" maxlength="20"><input type="text" id="mePhone" inputmode="tel" placeholder="Handynummer" value="${esc(myPhone())}" maxlength="25"></div>
+    <div class="row"><button class="btn primary" id="meSave">Speichern</button><span class="muted" style="font-size:13px">Die Nummer landet in der Teilnehmerliste (Orga), damit euch alle erreichen.</span></div></div>`);
+  main.querySelectorAll('[data-me]').forEach(b => b.onclick = () => { $('#meName').value = b.dataset.me; $('#mePhone').value = phoneOf(b.dataset.me); main.querySelectorAll('[data-me]').forEach(x => x.classList.toggle('primary', x === b)); });
+  $('#meSave').onclick = () => setMe($('#meName').value.trim(), $('#mePhone').value.trim());
   window.scrollTo({top: $('#meBox').offsetTop - 70, behavior:'smooth'});
 };
-function setMe(n){ ME = n; ls.set('jga-me', n); renderMe(); if(n && !peopleList().some(p => (p.name||'').toLowerCase() === n.toLowerCase())) R('people/' + uid()).set({name: n, at: firebase.database.ServerValue.TIMESTAMP}); render(); }
+const personOf = n => peopleList().find(p => (p.name||'').toLowerCase() === (n||'').toLowerCase());
+const phoneOf = n => (personOf(n) || {}).phone || '';
+const myPhone = () => phoneOf(ME);
+function setMe(n, phone){
+  if(!n) return toast('Bitte einen Namen wählen oder eintippen.', true);
+  ME = n; ls.set('jga-me', n); renderMe();
+  const ex = personOf(n);
+  if(ex){ if(phone !== undefined && phone !== (ex.phone||'')) R('people/' + ex.id + '/phone').set(phone); }
+  else R('people/' + uid()).set({name: n, phone: phone || '', at: firebase.database.ServerValue.TIMESTAMP});
+  toast('Gespeichert'); render();
+}
 renderMe();
 /* Während jemand in einem Feld tippt, wird die Seite nicht neu aufgebaut; das holt sie nach dem Verlassen des Felds nach. */
 let pendingRender = false;
