@@ -115,9 +115,11 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 @media (max-width:560px){.bracket{grid-template-columns:1fr}}
 .champ{text-align:center;padding:18px;border-radius:14px;background:var(--pine);color:#fff}
 .champ .name{font-family:var(--display);font-weight:800;font-size:clamp(24px,6vw,34px)}
-.teamedit{display:grid;grid-template-columns:40px 1fr 1fr 1fr;gap:6px;align-items:center}
-@media (max-width:560px){.teamedit{grid-template-columns:40px 1fr}}
-.teamedit .no{font-family:var(--display);font-weight:800;color:var(--muted)}
+.teamedit{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.teamedit:first-of-type{border-top:0}
+.teamedit .no{grid-column:1/-1;font-family:var(--display);font-weight:800;font-size:15px}
+.teamedit .no small{font-family:var(--body);font-weight:400;color:var(--muted)}
+@media (max-width:560px){.teamedit{grid-template-columns:1fr}}
 
 /* Quiz */
 .live{border:2px solid var(--amber)}
@@ -365,7 +367,10 @@ function renderTour(){
   </tbody></table><div style="margin-top:8px">${GROUP_GAMES[g].map(([gid,a,b]) => gameRow(gid,a,b)).join('')}</div></div>`;
   main.innerHTML = `${editBtn('Teams bearbeiten')}
     ${champ ? `<div class="champ"><span class="eyebrow" style="color:rgba(255,255,255,.8)">Bierpong-Sieger</span><div class="name">${esc(teamName(champ))}</div><div>${esc(teamSub(champ))}</div></div>` : ''}
-    ${edit ? `<div class="card stack"><h3>Teams</h3>${TEAM_IDS.map(i => `<div class="teamedit"><span class="no">${i}</span><input type="text" data-team="${i}" data-k="name" value="${esc((D.teams[i]||{}).name||'')}" placeholder="Team ${i}"><input type="text" data-team="${i}" data-k="p1" value="${esc((D.teams[i]||{}).p1||'')}" placeholder="Spieler 1"><input type="text" data-team="${i}" data-k="p2" value="${esc((D.teams[i]||{}).p2||'')}" placeholder="Spieler 2"></div>`).join('')}<p class="muted" style="font-size:13px">Teams 1 bis 4 sind Gruppe A, 5 bis 8 Gruppe B. Wird beim Tippen gespeichert; der Name erscheint überall, sobald du „Fertig“ drückst.</p>
+    ${edit ? `<div class="card stack"><h3>Teams</h3>${TEAM_IDS.map(i => `<div class="teamedit"><span class="no">Team ${i} <small>· Gruppe ${i<=4?'A':'B'}</small></span>
+        <label class="field">Teamname<input type="text" data-team="${i}" data-k="name" value="${esc((D.teams[i]||{}).name||'')}" placeholder="z. B. Die Becherhelden"></label>
+        <label class="field">Spieler 1<input type="text" data-team="${i}" data-k="p1" value="${esc((D.teams[i]||{}).p1||'')}" placeholder="Vorname"></label>
+        <label class="field">Spieler 2<input type="text" data-team="${i}" data-k="p2" value="${esc((D.teams[i]||{}).p2||'')}" placeholder="Vorname"></label></div>`).join('')}<p class="muted" style="font-size:13px">Der Teamname ersetzt überall „Team 1“ usw., sobald du „Fertig“ drückst. Spielernamen erscheinen klein darunter.</p>
       <div class="row"><button class="btn danger" id="resetTour">Alle Ergebnisse löschen</button></div></div>` : ''}
     <div class="groups">${tbl('A')}${tbl('B')}</div>
     <p class="muted">Die ersten zwei jeder Gruppe kommen weiter. Halbfinale über Kreuz: Erster A gegen Zweiter B, Erster B gegen Zweiter A.</p>
