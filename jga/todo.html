@@ -70,13 +70,13 @@ const ls = { get(k,d){ try{ const v = localStorage.getItem(k); return v==null?d:
 const ME = ls.get('jga-me', '');
 /* Diese Punkte müssen drin sein (werden einmalig ergänzt, falls sie fehlen) */
 const MUST = [
-  ['taxi-semmeln', 'Taxi vorbestellen: Freitagmorgen Hütte → Bäckerei Aste Matrei und zurück (Semmeln)'],
-  ['taxi-sbahn', 'Taxi vorbestellen: Freitag 11:30 Hütte → Bahnhof Matrei am Brenner (2 Großraumtaxis)'],
-  ['pizza', 'Pizza bestellen: Pizzeria Toscana Matrei, +43 5273 60437, 16 Pizzen für Donnerstag ca. 16 Uhr'],
-  ['tennis', 'Tennishalle bestellen: 4 Plätze, Freitag 14–16:30 (TI Innsbruck +43 677 64000130 oder IEV +43 512 373031)'],
-  ['fruehstueck', 'Frühstückslocation buchen: Donnerstag 9–11 Uhr, 16 Personen, fußläufig vom P+R Oberesslingen'],
-  ['bus', 'Bus final buchen: Do 11:00 ab Oberesslingen, Stopp Matrei, Hütte Navis; Sa 10:00 ab Innsbruck zurück'],
-  ['getraenke', 'Getränkehändler anfragen: Lieferung an die Hütte (Bier, Wasser, Softdrinks, Bierpong-Bier) für Donnerstag'],
+  ['taxi-semmeln', 'Taxi vorbestellen: Freitagmorgen Hütte → Bäckerei Aste Matrei und zurück (Semmeln)', 'Wipptal Taxi, Steinach: +43 664 1223055 · Busreisen Mair, Matrei: +43 5273 6225 · Bäckerei Aste, Matrei 43: +43 5273 6769, ab 6 Uhr'],
+  ['taxi-sbahn', 'Taxi vorbestellen: Freitag 11:30 Hütte → Bahnhof Matrei am Brenner (2 Großraumtaxis)', 'Wipptal Taxi: +43 664 1223055 · Busreisen Mair (Kleinbus): +43 5273 6225 · Ziel: Bahnhof Matrei am Brenner, S-Bahn 12:00'],
+  ['pizza', 'Pizza bestellen: 16 Pizzen für Donnerstag ca. 16 Uhr, Abholung beim Einkaufsstopp', 'Pizzeria Toscana, Matrei am Brenner 19: +43 5273 60437, Di–So 11–22 Uhr'],
+  ['tennis', 'Tennishalle bestellen: 4 Plätze, Freitag 14–16:30', 'Vorschlag: Tennisclub TI, Wiesengasse 20, Innsbruck: +43 677 64000130 (Restaurant da Tommaso im Haus) · Alternative: Tennisklub IEV, Reichenauer Str. 144: +43 512 373031'],
+  ['fruehstueck', 'Frühstückslocation buchen: Donnerstag 9–11 Uhr, 16 Personen, fußläufig vom P+R Oberesslingen', 'Vorschlag: Happy Baker, Plochinger Str. 40, Esslingen (ca. 1 km vom P+R): +49 711 50463715 · Alternativ Esslinger Altstadt: FLO Schwesterherz, Bahnhofstr. 28: +49 711 45981882'],
+  ['bus', 'Bus final buchen: Do 11:00 ab P+R Oberesslingen, Stopp Matrei (30 Min.), Hütte Navis; Sa 10:00 ab Innsbruck zurück', 'Busunternehmen laut Angebot; Zufahrt Oberweg 22, Navis, mit dem Fahrer klären (schmale Bergstraße)'],
+  ['getraenke', 'Getränkehändler anfragen: Lieferung an die Hütte für Donnerstag (Bier, Wasser, Softdrinks, Bierpong-Bier)', 'Vorschlag: Franz Tollinger Getränkegroßhandel, Sillhöfe 12, Innsbruck: +43 512 335590 (liefert Mo–Fr) · Lokal: Getränke Statz 90, Matrei (ohne Telefon gelistet)'],
 ];
 /* Alte Doppelung aus der ersten Liste */
 const DROP = ['Frühstückslocation Oberesslingen für Donnerstag 9 Uhr reservieren'];
@@ -86,7 +86,7 @@ const toast = (m, err) => { let n = $('#toast'); if(!n){ n = document.createElem
 R('todos').on('value', s => {
   todos = s.val() || {};
   if(!ensured){ ensured = true; const u = {}; const entries = Object.entries(todos);
-    MUST.forEach(([key, text], i) => { if(!entries.some(([,t]) => t.key === key || t.text === text)) u[uid()] = {key, text, who: '', done: false, order: -10 + i}; });
+    MUST.forEach(([key, text, info], i) => { const ex = entries.find(([,t]) => t.key === key || t.text === text); if(!ex) u[uid()] = {key, text, info, who: '', done: false, order: -10 + i}; else if(ex[1].info !== info || ex[1].text !== text) u[ex[0]] = {...ex[1], key, text, info}; });
     entries.forEach(([id, t]) => { if(DROP.includes(t.text)) u[id] = null; });
     if(Object.keys(u).length) R('todos').update(u); }
   render();
@@ -97,7 +97,7 @@ function render(){
   const open = list.filter(t => !t.done), done = list.filter(t => t.done);
   const row = t => `<div class="item ${t.done?'done':''}">
       <input type="checkbox" data-done="${t.id}" ${t.done?'checked':''}>
-      <div><div class="txt">${esc(t.text)}</div>
+      <div><div class="txt">${esc(t.text)}</div>${t.info ? `<div class="muted" style="font-size:13px;margin-top:2px">${esc(t.info)}</div>` : ''}
         <div class="who"><input type="text" data-who="${t.id}" value="${esc(t.who||'')}" placeholder="Wer übernimmt das?" maxlength="30" class="${t.who?'set':''}">${!t.who && ME ? `<button class="btn small" data-me="${t.id}">Ich (${esc(ME)})</button>` : `<button class="btn small danger" data-del="${t.id}" title="Löschen">✕</button>`}</div>
       </div></div>`;
   $('#list').innerHTML = (open.map(row).join('') || '<p class="muted">Alles erledigt.</p>') + (showDone && done.length ? `<p class="muted" style="margin:12px 0 4px;font-size:13px">Erledigt</p>` + done.map(row).join('') : '');
