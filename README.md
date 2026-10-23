@@ -23,4 +23,4 @@ Die Werte in `FIREBASE_CONFIG` sind keine Geheimnisse, sie gehören in jede Fire
 4. **Erste Frage**: alle sehen das Foto und tippen A oder B. Nach Ablauf der Zeit (oder per **Auflösen**) erscheint die Verteilung, die richtige Antwort und bei jedem Spieler die Punkte.
 5. Nach der letzten Frage: Rangliste. **Spiel löschen** entfernt die Daten aus der Datenbank; Spiele älter als zwei Tage werden beim nächsten Start automatisch gelöscht.
 
-Punkte: 100 pro richtiger Antwort plus bis zu 50 Bonus für Schnelligkeit.
+Punkte: 100 pro richtiger Antwort plus bis zu 100 Bonus für Schnelligkeit (der Bonus sinkt mit der Zeit bis zum Ablauf der Fragezeit). Die Auflösung zeigt die drei Schnellsten.

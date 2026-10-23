@@ -176,11 +176,12 @@ function initDb(){
 const now = () => Date.now() + serverOffset;
 const gref = (code, path='') => db.ref('games/' + code + (path ? '/' + path : ''));
 
-/* Punkte: 100 für richtig plus bis zu 50 Schnelligkeitsbonus */
+/* Punkte: 100 für richtig plus bis zu 100 Schnelligkeitsbonus.
+   Der Bonus sinkt linear mit der Zeit bis zum Ablauf der Fragezeit (ohne Limit: 30 s als Maß). */
 function points(elapsedMs, seconds){
   const limit = (seconds > 0 ? seconds : 30) * 1000;
   const bonus = Math.max(0, 1 - elapsedMs / limit);
-  return 100 + Math.round(50 * bonus);
+  return 100 + Math.round(100 * bonus);
 }
 
 /* Bild verkleinern (max. 900 px Kante, JPEG) */
@@ -437,6 +438,8 @@ function hostRender(){
     const nA = Object.values(res).filter(x => x.choice==='A').length, nB = Object.values(res).filter(x => x.choice==='B').length;
     const tot = Math.max(1, nA+nB);
     const nRight = Object.values(res).filter(x => x.correct).length;
+    const fastest = Object.entries(res).filter(([,x]) => x.correct).sort((a,b) => a[1].ms - b[1].ms).slice(0,3)
+      .map(([pid,x],i) => `<div class="rank top"><span class="pos">${i+1}.</span><span style="overflow-wrap:anywhere">${esc((H.players[pid]||{}).name || '?')}</span><span class="score">${(x.ms/1000).toFixed(1)} s · +${x.gained}</span></div>`).join('');
     const last = st.q+1 >= st.total;
     app.innerHTML = `<div class="wrap">${head}
       <div class="row between"><h2>Frage ${st.q+1} von ${st.total}</h2><span class="count">${nRight} von ${Object.keys(H.players).length} richtig</span></div>
@@ -447,6 +450,7 @@ function hostRender(){
         <div class="bar"><span class="tag a">A</span><div class="track"><div class="fill a" style="width:${100*nA/tot}%"></div></div><span class="n">${nA}</span></div>
         <div class="bar"><span class="tag b">B</span><div class="track"><div class="fill b" style="width:${100*nB/tot}%"></div></div><span class="n">${nB}</span></div>
       </div>
+      ${fastest ? `<div class="card"><p class="eyebrow">Schnellste richtige Antworten</p>${fastest}</div>` : ''}
       <div class="row between"><button class="btn" id="board">Zwischenstand</button><button class="btn primary big" id="next">${last ? 'Rangliste zeigen' : 'Nächste Frage'}</button></div>
       <div class="card stack" id="boardBox" hidden><h2>Zwischenstand</h2><div id="ranking"></div></div>
       <div id="toast" class="notice" hidden></div>
@@ -502,12 +506,13 @@ async function hostReveal(){
       const ans = (await gref(code, 'answers/' + st.q).once('value')).val() || {};
       const players = (await gref(code, 'players').once('value')).val() || {};
       const upd = {};
-      for(const [pid, a] of Object.entries(ans)){
-        if(!players[pid]) continue;
-        const correct = a.choice === q.correct;
-        const gained = correct ? points(Math.max(0, (a.at || st.startedAt) - st.startedAt), st.seconds) : 0;
-        upd['results/' + st.q + '/' + pid] = {choice: a.choice, correct, gained};
-        upd['players/' + pid + '/score'] = (players[pid].score || 0) + gained;
+      const rows = Object.entries(ans).filter(([pid]) => players[pid]).map(([pid, a]) => ({pid, choice: a.choice, ms: Math.max(0, (a.at || st.startedAt) - st.startedAt), correct: a.choice === q.correct}));
+      const fast = rows.filter(r => r.correct).sort((x,y) => x.ms - y.ms);
+      for(const r of rows){
+        const gained = r.correct ? points(r.ms, st.seconds) : 0;
+        const speedRank = r.correct ? fast.findIndex(f => f.pid === r.pid) + 1 : 0;
+        upd['results/' + st.q + '/' + r.pid] = {choice: r.choice, correct: r.correct, gained, ms: r.ms, speedRank};
+        upd['players/' + r.pid + '/score'] = (players[r.pid].score || 0) + gained;
       }
       upd['state/phase'] = 'reveal';
       await gref(code).update(upd);
@@ -637,12 +642,14 @@ async function playerRender(){
     const q = P.cache[st.q] || await loadQuestion(st.q).catch(()=>null);
     const res = (await gref(P.code, 'results/' + st.q + '/' + P.pid).once('value')).val();
     if(P.state !== st) return;
-    const v = !res ? ['bad','Keine Antwort'] : res.correct ? ['ok','Richtig!'] : ['bad','Leider falsch'];
+    const v = !res ? ['bad','Keine Antwort'] : res.correct ? ['ok', res.speedRank === 1 ? 'Richtig und am schnellsten!' : 'Richtig!'] : ['bad','Leider falsch'];
+    const speed = res && res.correct ? `<p class="muted">${(res.ms/1000).toFixed(1)} s · ${res.speedRank}. schnellste richtige Antwort · 100 Punkte + ${res.gained-100} Tempo-Bonus</p>` : '';
     app.innerHTML = `<div class="app">${pHead()}
       <p class="muted">Frage ${st.q+1} von ${st.total}</p>
       <div class="card stack center">
         <div class="verdict ${v[0]}">${v[1]}</div>
         <div class="points">${res && res.gained ? '+' + res.gained : '+0'}</div>
+        ${speed}
         ${q ? `<p>Richtig war <strong>${esc(q.correct)}: ${esc(q.correct==='A'?q.a:q.b)}</strong></p>` : ''}
       </div>
       <div class="card center" id="rk"></div>
