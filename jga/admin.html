@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>JGA Ferdi · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Rubik:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#F3F5F2;--surface:#FFFFFF;--ink:#16231B;--muted:#5E6E63;--line:#D5DDD6;--soft:#E6ECE6;--pine:#1E5A3C;--amber:#E6A117;--ok:#1E8A5A;--bad:#C23B3B;
+  --display:"Bricolage Grotesque","Rubik",system-ui,sans-serif;--body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121914;--surface:#1A231C;--ink:#EDF2EC;--muted:#9BAA9F;--line:#2B3A2F;--soft:#223027;--pine:#2E7A52;--amber:#F2B23A;--ok:#3FBF86;--bad:#E06060;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121914;--surface:#1A231C;--ink:#EDF2EC;--muted:#9BAA9F;--line:#2B3A2F;--soft:#223027;--pine:#2E7A52;--amber:#F2B23A;--ok:#3FBF86;--bad:#E06060;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+main{max-width:860px;margin:0 auto;padding-block:18px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(24px,5vw,32px);margin:0}
+h2{font-family:var(--display);font-weight:800;font-size:19px;margin:0}
+p{margin:0}.muted{color:var(--muted)}
+a{color:var(--pine)}
+button,input,select,textarea{font:inherit;color:inherit}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.between{justify-content:space-between}.grow{flex:1 1 160px;min-width:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 12px;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn.primary{background:var(--pine);color:#fff;border-color:var(--pine)}.btn.danger{color:var(--bad)}.btn.small{padding:4px 9px;font-size:13px}
+input[type=text],input[type=number],input[type=password],select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+textarea{min-height:60px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-weight:600;cursor:pointer;font-size:14px}
+.tabs button.on{background:var(--pine);color:#fff;border-color:var(--pine)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+td input{padding:5px 8px}
+.wrap{overflow-x:auto}
+.kpi{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.kpi div{background:var(--soft);border-radius:10px;padding:10px}.kpi b{font-family:var(--display);font-size:22px;display:block}
+.kpi small{color:var(--muted)}
+.notice{padding:10px 12px;border-radius:10px;background:var(--soft);font-size:14px}.notice.err{background:color-mix(in srgb,var(--bad) 14%,var(--surface));color:var(--bad)}
+.thumb{width:56px;height:56px;object-fit:cover;border-radius:8px;background:var(--soft)}
+.gate{max-width:380px;margin:60px auto}
+</style>
+</head>
+<body>
+<main id="main"></main>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+firebase.initializeApp({ apiKey: "AIzaSyACL_u2I8L2PaHwUtEaA99EZ9iXBZ3Pol4", authDomain: "quiz-de-titte.firebaseapp.com", databaseURL: "https://quiz-de-titte-default-rtdb.europe-west1.firebasedatabase.app", projectId: "quiz-de-titte" });
+const db = firebase.database(), ROOT = db.ref('jga'), R = p => db.ref('jga/' + p);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36);
+const DEFAULT_PIN = '2027';
+let D = {}, tab = 'overview', unlocked = sessionStorage.getItem('jga-admin') === '1';
+const toast = (m, err) => { let n = $('#toast'); if(!n){ n = document.createElement('div'); n.id = 'toast'; n.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:5;max-width:90vw'; document.body.appendChild(n); } n.innerHTML = `<div class="notice ${err?'err':''}" style="box-shadow:0 6px 24px rgba(0,0,0,.25)">${esc(m)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => n.innerHTML = '', 3000); };
+/* Zweistufiges Löschen: erster Klick fragt, zweiter löscht */
+function arm(b, label, fn){ if(b.dataset.armed){ fn(); return; } b.dataset.armed = 1; const t = b.textContent; b.textContent = label || 'Wirklich?'; setTimeout(() => { delete b.dataset.armed; b.textContent = t; }, 4000); }
+const save = (p, v) => R(p).set(v).catch(e => toast(e.message, true));
+const entries = k => Object.entries(D[k] || {}).map(([id, v]) => ({id, ...v}));
+const typing = () => { const a = document.activeElement; return a && $('#main').contains(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
+let pending = false;
+ROOT.on('value', s => { D = s.val() || {}; if(typing()){ pending = true; return; } render(); }, e => { $('#main').innerHTML = `<div class="notice err">Keine Verbindung: ${esc(e.message)}</div>`; });
+$('#main').addEventListener('focusout', () => setTimeout(() => { if(pending && !typing()){ pending = false; render(); } }, 80));
+
+function render(){
+  if(!unlocked){ $('#main').innerHTML = `<div class="card gate"><h1>Admin</h1><p class="muted">PIN eingeben.</p><input type="password" id="pin" inputmode="numeric" placeholder="PIN"><button class="btn primary" id="go">Öffnen</button><p class="muted" style="font-size:12px">Zurück zur <a href="./">JGA-App</a></p></div>`;
+    $('#go').onclick = () => { const ok = $('#pin').value === ((D.settings||{}).adminPin || DEFAULT_PIN); if(!ok) return toast('Falsche PIN', true); unlocked = true; sessionStorage.setItem('jga-admin','1'); render(); };
+    $('#pin').onkeydown = e => { if(e.key === 'Enter') $('#go').click(); }; $('#pin').focus(); return; }
+  const T = [['overview','Überblick'],['people','Teilnehmer'],['teams','Teams'],['boerse','Börse'],['photos','Fotos'],['musik','Musik'],['money','Kasse'],['plan','Plan'],['settings','Einstellungen'],['data','Daten']];
+  $('#main').innerHTML = `<div class="row between"><h1>JGA Admin</h1><a href="./">← JGA-App</a></div>
+    <div class="tabs">${T.map(([k,l]) => `<button data-tab="${k}" class="${tab===k?'on':''}">${l}</button>`).join('')}</div>
+    <div id="body"></div>`;
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+  ({overview, people, teams, boerse, photos, musik, money, plan, settings, data})[tab]();
+}
+function overview(){
+  const s = D.settings || {};
+  const n = k => Object.keys(D[k] || {}).length;
+  $('#body').innerHTML = `<div class="card"><h2>Stand</h2><div class="kpi">
+    <div><b>${n('people')}</b><small>Teilnehmer</small></div><div><b>${n('teams')}</b><small>Bierpong-Teams</small></div><div><b>${n('tennisTeams')}</b><small>LRG-Teams</small></div>
+    <div><b>${n('boerse')}</b><small>in der Börse</small></div><div><b>${n('wall')}</b><small>Fotos</small></div><div><b>${n('expenses')}</b><small>Ausgaben</small></div>
+    <div><b>${n('polls')}</b><small>Umfragen</small></div><div><b>${n('songs')}</b><small>Songwünsche</small></div><div><b>${n('todos')}</b><small>Orga-Punkte</small></div></div>
+    <div class="row"><span class="notice">Bierpong: ${D.draw ? 'ausgelost' : 'nicht ausgelost'} · ${n('results')} Ergebnisse</span><span class="notice">LRG: ${D.tennisDraw ? 'ausgelost' : 'nicht ausgelost'} · ${n('tennisResults')} Ergebnisse</span><span class="notice">„Wie lange“: ${s.arrivedAt ? 'ausgeblendet (angekommen)' : 'aktiv'}</span></div>
+    <p class="muted" style="font-size:13px">Admin-PIN: ${s.adminPin ? 'gesetzt' : 'Standard (' + DEFAULT_PIN + ') · unter Einstellungen ändern'}</p></div>`;
+}
+function people(){
+  const list = entries('people').sort((a,b) => (a.name||'').localeCompare(b.name||'','de'));
+  $('#body').innerHTML = `<div class="card"><div class="row between"><h2>Teilnehmer (${list.length})</h2><button class="btn small" id="dedupe">Doppelte Namen zusammenführen</button></div>
+    <div class="wrap"><table><thead><tr><th>Name</th><th>Spitzname</th><th>Handy</th><th></th></tr></thead><tbody>
+    ${list.map(p => `<tr><td><input type="text" data-p="${p.id}" data-k="name" value="${esc(p.name||'')}"></td><td><input type="text" data-p="${p.id}" data-k="nick" value="${esc(p.nick||'')}"></td><td><input type="text" data-p="${p.id}" data-k="phone" value="${esc(p.phone||'')}"></td><td><button class="btn small danger" data-del="people/${p.id}">✕</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="row"><input type="text" id="newP" class="grow" placeholder="Neuer Teilnehmer"><button class="btn primary" id="addP">+</button></div></div>`;
+  wireInputs('p', 'people'); wireDel();
+  $('#addP').onclick = () => { const n = $('#newP').value.trim(); if(n) save('people/' + uid(), {name: n, at: Date.now()}); };
+  $('#dedupe').onclick = () => { const seen = {}; const u = {}; list.forEach(p => { const k = (p.name||'').toLowerCase(); if(!k) return; if(seen[k]){ const keep = seen[k]; u[keep.id + '/phone'] = keep.phone || p.phone || ''; u[keep.id + '/nick'] = keep.nick || p.nick || ''; u[p.id] = null; } else seen[k] = p; }); if(!Object.keys(u).length) return toast('Keine Doppelungen.'); R('people').update(u).then(() => toast('Zusammengeführt')); };
+}
+function teams(){
+  const block = (key, drawKey, resKey, label) => { const list = entries(key).sort((a,b) => (a.at||0)-(b.at||0)); const draw = D[drawKey];
+    return `<div class="card"><div class="row between"><h2>${label} (${list.length})</h2><div class="row"><button class="btn small danger" data-reset="${resKey}" data-label="Alle ${label}-Ergebnisse löschen?">Ergebnisse löschen</button><button class="btn small danger" data-reset="${drawKey}" data-label="Auslosung zurücksetzen?" ${draw?'':'disabled'}>Auslosung zurücksetzen</button></div></div>
+    <div class="wrap"><table><thead><tr><th>Platz</th><th>Team</th><th>Spieler 1</th><th>Spieler 2</th><th>Walk-out-Song</th><th></th></tr></thead><tbody>
+    ${list.map(t => { const slot = draw && draw.slots ? Object.entries(draw.slots).find(([,id]) => id === t.id) : null; return `<tr><td>${slot ? slot[0] + (slot[0] <= 4 ? ' (A)' : ' (B)') : '–'}</td><td><input type="text" data-p="${t.id}" data-k="name" data-root="${key}" value="${esc(t.name||'')}"></td><td><input type="text" data-p="${t.id}" data-k="p1" data-root="${key}" value="${esc(t.p1||'')}"></td><td><input type="text" data-p="${t.id}" data-k="p2" data-root="${key}" value="${esc(t.p2||'')}"></td><td><input type="text" data-p="${t.id}" data-k="song" data-root="${key}" value="${esc(t.song||'')}"></td><td><button class="btn small danger" data-del="${key}/${t.id}">✕</button></td></tr>`; }).join('')}
+    </tbody></table></div>
+    <div class="row"><input type="text" id="new-${key}" class="grow" placeholder="Neues Team (Name)"><button class="btn primary" data-addteam="${key}">+</button></div>
+    ${draw ? '<p class="muted" style="font-size:13px">Auslosung steht. Teams löschen erst nach „Auslosung zurücksetzen“.</p>' : ''}</div>`; };
+  $('#body').innerHTML = block('teams','draw','results','Bierpong') + block('tennisTeams','tennisDraw','tennisResults','LRG') + `<div class="card"><h2>Teamwertung</h2><button class="btn danger" data-reset="teamScores" data-label="Alle Punkte der Teamwertung löschen?">Teamwertung zurücksetzen</button></div>`;
+  wireInputs('p'); wireDel(); wireReset();
+  document.querySelectorAll('[data-addteam]').forEach(b => b.onclick = () => { const i = $('#new-' + b.dataset.addteam); const n = i.value.trim(); if(n) save(b.dataset.addteam + '/' + uid(), {name: n, p1: '', p2: '', song: '', at: Date.now()}); });
+}
+function boerse(){
+  const list = entries('boerse').sort((a,b) => (a.at||0)-(b.at||0));
+  const L = {quiz:'Quiz', pong:'Bierpong', lag:'LRG'};
+  $('#body').innerHTML = `<div class="card"><div class="row between"><h2>Spielerbörse (${list.length})</h2><button class="btn small danger" data-reset="boerse" data-label="Börse komplett leeren?">Leeren</button></div>
+    <table><thead><tr><th>Name</th><th>Stärke</th><th></th></tr></thead><tbody>${list.map(b => `<tr><td>${esc(b.name)}</td><td><select data-p="${b.id}" data-k="strength" data-root="boerse">${Object.entries(L).map(([k,l]) => `<option value="${k}" ${b.strength===k?'selected':''}>${l}</option>`).join('')}</select></td><td><button class="btn small danger" data-del="boerse/${b.id}">✕</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">leer</td></tr>'}</tbody></table></div>`;
+  wireInputs('p'); wireDel(); wireReset();
+}
+function photos(){
+  const list = entries('wall').map(w => { const v = w.votes || {}; return {...w, up: Object.values(v).filter(x => x===1).length, down: Object.values(v).filter(x => x===-1).length}; }).sort((a,b) => (b.at||0)-(a.at||0));
+  const hero = (D.settings||{}).heroPhoto; const hp = entries('photos');
+  $('#body').innerHTML = `<div class="card"><div class="row between"><h2>Fotowand (${list.length})</h2><div class="row"><button class="btn small danger" data-reset-votes="1">Alle Stimmen löschen</button><button class="btn small danger" data-reset="wall" data-label="Alle Fotos der Fotowand löschen?">Alle Fotos löschen</button></div></div>
+    <div class="wrap"><table><thead><tr><th></th><th>Von</th><th>Zeit</th><th>👍</th><th>👎</th><th></th></tr></thead><tbody>${list.map(w => `<tr><td><img class="thumb" src="${w.img}" alt=""></td><td>${esc(w.by||'')}</td><td>${w.at ? new Date(w.at).toLocaleString('de-DE',{weekday:'short',hour:'2-digit',minute:'2-digit'}) : ''}</td><td>${w.up}</td><td>${w.down}</td><td><button class="btn small danger" data-del="wall/${w.id}">✕</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">keine</td></tr>'}</tbody></table></div></div>
+    <div class="card"><h2>Hüttenfotos (${hp.length})</h2><div class="row">${hp.map(p => `<div style="text-align:center"><img class="thumb" src="${p.img}" alt="" style="width:80px;height:80px;${p.id===hero?'outline:3px solid var(--amber)':''}"><div class="row" style="justify-content:center;gap:4px;margin-top:4px"><button class="btn small" data-hero="${p.id}">★</button><button class="btn small danger" data-del="photos/${p.id}">✕</button></div></div>`).join('') || '<p class="muted">keine</p>'}</div></div>`;
+  wireDel(); wireReset();
+  document.querySelectorAll('[data-hero]').forEach(b => b.onclick = () => save('settings/heroPhoto', b.dataset.hero));
+  const rv = document.querySelector('[data-reset-votes]'); if(rv) rv.onclick = () => arm(rv, 'Wirklich alle Stimmen löschen?', () => { const u = {}; list.forEach(w => { u[w.id + '/votes'] = null; }); R('wall').update(u).then(() => toast('Stimmen gelöscht')); });
+}
+function musik(){
+  const songs = entries('songs').sort((a,b) => (b.at||0)-(a.at||0)), polls = entries('polls').sort((a,b) => (b.at||0)-(a.at||0));
+  $('#body').innerHTML = `<div class="card"><div class="row between"><h2>Playlist-Wünsche (${songs.length})</h2><button class="btn small danger" data-reset="songs" data-label="Alle Wünsche löschen?">Leeren</button></div>
+    <table><tbody>${songs.map(x => `<tr><td><strong>${esc(x.title)}</strong>${x.artist ? ' · ' + esc(x.artist) : ''}<div class="muted" style="font-size:12px">${esc(x.by||'')}</div></td><td style="width:40px"><button class="btn small danger" data-del="songs/${x.id}">✕</button></td></tr>`).join('') || '<tr><td class="muted">keine</td></tr>'}</tbody></table></div>
+    <div class="card"><div class="row between"><h2>Umfragen (${polls.length})</h2><button class="btn small danger" data-reset="polls" data-label="Alle Umfragen löschen?">Leeren</button></div>
+    <table><tbody>${polls.map(p => { const v = p.votes || {}; const n = Object.keys(v).length; return `<tr><td><strong>${esc(p.q)}</strong>${p.closed ? ' <span class="muted">(beendet)</span>' : ''}<div class="muted" style="font-size:12px">${(p.options||[]).map((o,i) => `${esc(o)}: ${Object.values(v).filter(x => x===i).length}`).join(' · ')} · ${n} Stimmen</div></td><td style="width:150px"><div class="row"><button class="btn small" data-pclose="${p.id}">${p.closed ? 'Öffnen' : 'Beenden'}</button><button class="btn small danger" data-del="polls/${p.id}">✕</button></div></td></tr>`; }).join('') || '<tr><td class="muted">keine</td></tr>'}</tbody></table></div>`;
+  wireDel(); wireReset();
+  document.querySelectorAll('[data-pclose]').forEach(b => b.onclick = () => save('polls/' + b.dataset.pclose + '/closed', !(D.polls[b.dataset.pclose]||{}).closed));
+}
+function money(){
+  const ex = entries('expenses').sort((a,b) => (b.at||0)-(a.at||0)); const total = ex.reduce((a,e) => a + (+e.amount||0), 0);
+  $('#body').innerHTML = `<div class="card"><div class="row between"><h2>Kasse (${ex.length} · ${total.toFixed(2).replace('.',',')} €)</h2><button class="btn small danger" data-reset="expenses" data-label="Alle Ausgaben löschen?">Leeren</button></div>
+    <div class="wrap"><table><thead><tr><th>Wofür</th><th>Betrag</th><th>Zahler</th><th>Für</th><th></th></tr></thead><tbody>${ex.map(e => `<tr><td><input type="text" data-p="${e.id}" data-k="desc" data-root="expenses" value="${esc(e.desc||'')}"></td><td><input type="number" step="0.01" data-p="${e.id}" data-k="amount" data-root="expenses" data-num="1" value="${e.amount ?? ''}"></td><td><input type="text" data-p="${e.id}" data-k="payer" data-root="expenses" value="${esc(e.payer||'')}"></td><td>${e.forAll === false && e.for ? esc(e.for.join(', ')) : 'alle'}</td><td><button class="btn small danger" data-del="expenses/${e.id}">✕</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">keine</td></tr>'}</tbody></table></div></div>`;
+  wireInputs('p'); wireDel(); wireReset();
+}
+function plan(){
+  const DAYS = {do:'Do', fr:'Fr', sa:'Sa'};
+  const list = entries('schedule').sort((a,b) => (a.day||'').localeCompare(b.day||'') || (a.time||'').localeCompare(b.time||''));
+  const order = {do:0, fr:1, sa:2}; list.sort((a,b) => (order[a.day]??9)-(order[b.day]??9) || (a.time||'').localeCompare(b.time||''));
+  $('#body').innerHTML = `<div class="card"><div class="row between"><h2>Programm (${list.length})</h2><button class="btn small danger" data-reset="schedule" data-label="Ganzen Plan löschen? (wird beim nächsten App-Start neu angelegt)">Plan zurücksetzen</button></div>
+    <div class="wrap"><table><thead><tr><th>Tag</th><th>Zeit</th><th>Titel</th><th>Ort</th><th>Hinweis</th><th></th></tr></thead><tbody>${list.map(it => `<tr><td><select data-p="${it.id}" data-k="day" data-root="schedule">${Object.entries(DAYS).map(([k,l]) => `<option value="${k}" ${it.day===k?'selected':''}>${l}</option>`).join('')}</select></td><td><input type="text" data-p="${it.id}" data-k="time" data-root="schedule" value="${esc(it.time||'')}" style="width:70px"></td><td><input type="text" data-p="${it.id}" data-k="title" data-root="schedule" value="${esc(it.title||'')}"></td><td><input type="text" data-p="${it.id}" data-k="place" data-root="schedule" value="${esc(it.place||'')}"></td><td><input type="text" data-p="${it.id}" data-k="note" data-root="schedule" value="${esc(it.note||'')}"></td><td><button class="btn small danger" data-del="schedule/${it.id}">✕</button></td></tr>`).join('')}</tbody></table></div>
+    <div class="card" style="padding:10px"><h2 style="font-size:16px">Infoblöcke (Hütte)</h2>${entries('info').sort((a,b) => (a.order||0)-(b.order||0)).map(b => `<div class="row between"><strong>${esc(b.title)}</strong><button class="btn small danger" data-del="info/${b.id}">✕</button></div>`).join('')}</div></div>`;
+  wireInputs('p'); wireDel(); wireReset();
+}
+function settings(){
+  const s = D.settings || {}; const tr = s.train || {};
+  $('#body').innerHTML = `<div class="card"><h2>Admin-PIN</h2><div class="row"><input type="text" id="pinNew" class="grow" placeholder="Neue PIN (4–8 Zeichen)" maxlength="8"><button class="btn primary" id="pinSave">Setzen</button></div><p class="muted" style="font-size:13px">Aktuell: ${s.adminPin ? 'eigene PIN gesetzt' : 'Standard ' + DEFAULT_PIN}. Die PIN ist ein Schutz gegen Zufallsklicks, keine echte Sicherheit.</p></div>
+    <div class="card"><h2>„Wie lange“-Reiter</h2><p class="muted" style="font-size:14px">Status: ${s.arrivedAt ? 'ausgeblendet seit ' + new Date(s.arrivedAt).toLocaleString('de-DE') : 'aktiv (Hinfahrt)'}</p><div class="row"><button class="btn" id="arrSet" ${s.arrivedAt?'disabled':''}>Jetzt auf „angekommen“ setzen</button><button class="btn" id="arrClear" ${s.arrivedAt?'':'disabled'}>Wieder einblenden</button></div>
+      <p class="muted" style="font-size:14px">Ziel: ${s.dest ? esc(s.dest.name) + ` (${(+s.dest.lat).toFixed(4)}, ${(+s.dest.lng).toFixed(4)})` : 'Standard (Hütte aus Plan / Navis)'}</p>${s.dest ? '<div><button class="btn small danger" data-reset="settings/dest" data-label="Ziel auf Standard zurücksetzen?">Ziel zurücksetzen</button></div>' : ''}</div>
+    <div class="card"><h2>Fahrpläne</h2><label>S-Bahn ab Innsbruck Hbf<textarea id="deps" placeholder="Standard (:19/:49, letzte 23:19)">${esc(tr.deps||'')}</textarea></label><label>Nightliner 560N ab Innsbruck<input type="text" id="night" placeholder="Standard 01:00, 02:00, 03:00" value="${esc(tr.night||'')}"></label><label>Bus 580 ab Navis<textarea id="bus" placeholder="Standard: bekannte Mo–Fr-Zeiten">${esc(tr.bus||'')}</textarea></label><div class="row"><button class="btn primary" id="trSave">Speichern</button><button class="btn" id="trReset">Alle auf Standard</button></div><p class="muted" style="font-size:13px">Leere Felder bedeuten Standard. Zeiten mit Komma trennen.</p></div>
+    <div class="card"><h2>Quiz-Anzeige</h2><p class="muted" style="font-size:14px">Laufendes Quiz: ${D.quiz && D.quiz.current ? esc(D.quiz.current.title) + ' · Code ' + esc(D.quiz.current.code) : 'keins'}</p><div><button class="btn small danger" data-reset="quiz/current" data-label="Quiz-Anzeige in der App entfernen?">Quiz-Anzeige entfernen</button></div></div>`;
+  wireReset();
+  $('#pinSave').onclick = () => { const v = $('#pinNew').value.trim(); if(v.length < 4) return toast('Mindestens 4 Zeichen.', true); save('settings/adminPin', v).then(() => toast('PIN gesetzt')); };
+  $('#arrSet').onclick = () => save('settings/arrivedAt', Date.now());
+  $('#arrClear').onclick = () => R('settings/arrivedAt').remove();
+  $('#trSave').onclick = () => R('settings/train').set({deps: $('#deps').value.trim() || null, night: $('#night').value.trim() || null, bus: $('#bus').value.trim() || null}).then(() => toast('Gespeichert'));
+  $('#trReset').onclick = () => R('settings/train').remove().then(() => toast('Standard'));
+}
+function data(){
+  $('#body').innerHTML = `<div class="card"><h2>Export</h2><p class="muted" style="font-size:14px">Alle App-Daten als JSON (ohne Fotos, die sind zu groß) oder komplett.</p><div class="row"><button class="btn primary" id="exp">Export ohne Fotos</button><button class="btn" id="expAll">Export komplett</button></div></div>
+    <div class="card"><h2>Gefahrenzone</h2><p class="muted" style="font-size:14px">Löscht nur die genannten Bereiche. Teilnehmer, Plan und Infoblöcke bleiben, außer bei „Alles“.</p>
+      <div class="row"><button class="btn danger" data-reset="wall" data-label="Alle Fotos der Fotowand löschen?">Fotowand</button><button class="btn danger" data-reset="expenses" data-label="Kasse leeren?">Kasse</button><button class="btn danger" data-reset="polls" data-label="Umfragen löschen?">Umfragen</button><button class="btn danger" data-reset="songs" data-label="Playlist leeren?">Playlist</button><button class="btn danger" data-reset="boerse" data-label="Börse leeren?">Börse</button><button class="btn danger" data-reset="todos" data-label="Orga-Liste leeren? (feste Punkte kommen zurück)">Orga-Liste</button></div>
+      <div class="row"><button class="btn danger" id="resetTour">Turniere zurücksetzen (Teams, Auslosungen, Ergebnisse, Teamwertung)</button></div>
+      <div class="row"><button class="btn danger" id="nuke" style="font-weight:700">Alles löschen (kompletter Neustart)</button></div></div>`;
+  wireReset();
+  const dl = (obj, name) => { const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+  $('#exp').onclick = () => { const c = JSON.parse(JSON.stringify(D)); delete c.wall; delete c.photos; dl(c, 'jga-export.json'); };
+  $('#expAll').onclick = () => dl(D, 'jga-export-komplett.json');
+  $('#resetTour').onclick = () => arm($('#resetTour'), 'Wirklich alle Turnierdaten löschen?', () => ROOT.update({teams: null, tennisTeams: null, draw: null, tennisDraw: null, results: null, tennisResults: null, teamScores: null, boerse: null}).then(() => toast('Turniere zurückgesetzt')));
+  $('#nuke').onclick = () => arm($('#nuke'), 'WIRKLICH ALLES löschen? Nochmal klicken.', () => { const pin = (D.settings||{}).adminPin; ROOT.set(pin ? {settings: {adminPin: pin}} : null).then(() => toast('Alles gelöscht. Die App legt Plan und Infos beim nächsten Start neu an.')); });
+}
+function wireInputs(attr, defaultRoot){
+  document.querySelectorAll(`[data-${attr}]`).forEach(inp => { const h = () => { const root = inp.dataset.root || defaultRoot; let v = inp.value; if(inp.dataset.num) v = v === '' ? null : +v; else v = v.trim(); save(`${root}/${inp.dataset[attr]}/${inp.dataset.k}`, v); }; inp.onchange = h; inp.onkeydown = e => { if(e.key === 'Enter') inp.blur(); }; });
+}
+function wireDel(){ document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => arm(b, 'Sicher?', () => R(b.dataset.del).remove().then(() => toast('Gelöscht')))); }
+function wireReset(){ document.querySelectorAll('[data-reset]').forEach(b => b.onclick = () => arm(b, b.dataset.label || 'Wirklich?', () => R(b.dataset.reset).remove().then(() => toast('Zurückgesetzt')))); }
+render();
+</script>
+</body>
+</html>
