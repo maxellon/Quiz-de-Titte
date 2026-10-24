@@ -215,6 +215,12 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 .top10 .rk{position:absolute;top:4px;left:4px;background:var(--amber);color:var(--amber-ink);font-family:var(--display);font-weight:800;font-size:13px;padding:1px 7px;border-radius:999px}
 .top10 figcaption{font-size:11px;padding:4px 6px;line-height:1.2}
 .top10 figcaption strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip-pick{display:flex;gap:6px;flex-wrap:wrap}
+.chip-pick button{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-weight:500;cursor:pointer}
+.chip-pick button.on{background:var(--pine);color:#fff;border-color:var(--pine)}
+.seek{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.seek:first-child{border-top:0}
+.seek .st{display:inline-block;padding:2px 9px;border-radius:999px;background:var(--soft);font-size:12px;font-weight:700;margin-left:6px}
 /* Wertung */
 .score{display:grid;grid-template-columns:1fr repeat(4,56px) 54px;gap:4px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
 .score input{padding:4px;text-align:center;font-size:14px}
@@ -289,7 +295,7 @@ function compressImage(file, max){
 
 /* ---------- Daten (live) ---------- */
 const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}, settings: {}, draw: null,
-  people: {}, expenses: {}, scores: {}, teamScores: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, wall: {}, songs: {}, polls: {} };
+  people: {}, expenses: {}, scores: {}, teamScores: {}, boerse: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, wall: {}, songs: {}, polls: {} };
 const DEVICE = (() => { let d = ls.get('jga-device', null); if(!d){ d = uid(); ls.set('jga-device', d); } return d; })();
 let ME = ls.get('jga-me', '');
 let tab = ls.get('jga-tab', 'plan'),  edit = false, openGame = null, editItem = null;
@@ -343,6 +349,7 @@ const SEED_PEOPLE = [['Alex','+49 162 2303116'],['Sven','+49 176 47720397'],['Ma
 R('people').on('value', s => { D.people = s.val() || {}; if(!onErr.ppl){ onErr.ppl = true; SEED_PEOPLE.forEach(([n,ph]) => { const ex = Object.entries(D.people).find(([,p]) => (p.name||'').toLowerCase() === n.toLowerCase()); if(!ex) R('people/' + uid()).set({name: n, phone: ph, at: firebase.database.ServerValue.TIMESTAMP}); else if(!ex[1].phone) R('people/' + ex[0] + '/phone').set(ph); }); } render(); renderMe(); }, onErr);
 R('expenses').on('value', s => { D.expenses = s.val() || {}; render(); }, onErr);
 R('teamScores').on('value', s => { D.teamScores = s.val() || {}; render(); }, onErr);
+R('boerse').on('value', s => { D.boerse = s.val() || {}; render(); }, onErr);
 R('songs').on('value', s => { D.songs = s.val() || {}; render(); }, onErr);
 R('polls').on('value', s => { D.polls = s.val() || {}; render(); }, onErr);
 R('tennisTeams').on('value', s => { D.tennisTeams = s.val() || {}; render(); }, onErr);
@@ -675,6 +682,7 @@ function renderTour(){
         <div class="notice">${T.note}</div>
         <div class="row">${T === TOURS.lag && Object.keys(D.teams || {}).length ? `<button class="btn" id="copyTeams">Teams vom Bierpong übernehmen</button>` : ''}<button class="btn amber" id="drawBtn" ${teams.length === 8 ? '' : 'disabled'}>${teams.length === 8 ? 'Auslosen' : `Auslosen (noch ${8 - teams.length} Team${8-teams.length===1?'':'s'} fehlen)`}</button></div>
       </div>
+      ${boerseCard(teams)}
       ${editing ? regForm(editing) : (teams.length < 8 ? regForm() : '')}`
     : `${animating ? '<div class="notice" style="text-align:center;font-weight:700">Auslosung läuft …</div>' : ''}
       ${edit ? `<div class="card stack"><h3>Teams</h3>${regList}${editing ? regForm(editing) : ''}
@@ -685,7 +693,7 @@ function renderTour(){
         <div class="card"><h3>Halbfinale</h3>${gameRow('S1', ko.s1[0], ko.s1[1], '1. Gruppe A – 2. Gruppe B')}${gameRow('S2', ko.s2[0], ko.s2[1], '1. Gruppe B – 2. Gruppe A')}</div>
         <div class="card"><h3>Finale</h3>${gameRow('F', ko.f[0], ko.f[1])}<h3 style="margin-top:12px">Spiel um Platz 3</h3>${gameRow('P3', ko.p3[0], ko.p3[1])}</div>
       </div>`}`;
-  wireEdit();
+  wireEdit(); wireBoerse();
   if(animating){ clearTimeout(renderTour.t); renderTour.t = setTimeout(() => { if(tab === 'tour' || tab === 'lag') render(); }, REVEAL_MS); }
   if($('#tsave')) $('#tsave').onclick = () => {
     const name = $('#tn').value.trim(), p1 = $('#tp1').value.trim(), p2 = $('#tp2').value.trim();
@@ -694,7 +702,8 @@ function renderTour(){
     const dup = teamList().some(t => t.id !== id && (t.name||'').toLowerCase() === name.toLowerCase());
     if(dup) return toast('Den Teamnamen gibt es schon.', true);
     const data = {name, p1, p2}; if(!$('#tsave').dataset.id) data.at = firebase.database.ServerValue.TIMESTAMP;
-    R(T.teams + '/' + id).update(data).then(() => { editItem = null; toast($('#tsave') ? 'Gespeichert' : ''); render(); }).catch(e => toast(e.message, true));
+    const pairIds = ($('#tn').dataset.pairIds || '').split(',').filter(Boolean);
+    R(T.teams + '/' + id).update(data).then(() => { pairIds.forEach(pid => R('boerse/' + pid).remove()); Object.entries(D.boerse).forEach(([bid,x]) => { if([name, p1, p2].some(n => n && (x.name||'').toLowerCase() === n.toLowerCase())) R('boerse/' + bid).remove(); }); editItem = null; toast('Gespeichert'); render(); }).catch(e => toast(e.message, true));
   };
   if($('#tcancel')) $('#tcancel').onclick = () => { editItem = null; render(); };
   main.querySelectorAll('[data-tedit]').forEach(b => b.onclick = () => { editItem = b.dataset.tedit; render(); });
@@ -715,6 +724,31 @@ function renderTour(){
   if($('#ssave')) $('#ssave').onclick = () => { const a = +$('#sa').value, b = +$('#sb').value; if($('#sa').value === '' || $('#sb').value === '') return toast('Beide Zahlen eintragen.', true); if(a === b) return toast('Unentschieden gibt es nicht. Wer hat gewonnen?', true); R(T.results + '/' + openGame).set({a, b, at: firebase.database.ServerValue.TIMESTAMP}).then(() => { openGame = null; toast('Gespeichert'); }).catch(e => toast(e.message, true)); };
   if($('#sclear')) $('#sclear').onclick = () => { R(T.results + '/' + openGame).remove(); openGame = null; };
   if($('#resetTour')) $('#resetTour').onclick = () => { const b = $('#resetTour'); if(b.dataset.armed){ R(T.results).remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich alle Ergebnisse löschen?'; };
+}
+/* Spielerbörse: wer noch keinen Partner hat, trägt sich mit seiner Stärke ein */
+const STRENGTHS = [['quiz','Quiz'],['pong','Bierpong'],['lag','LAG']];
+let seekStrength = null;
+function boerseCard(teams){
+  const list = Object.entries(D.boerse).map(([id,b]) => ({id, ...b})).sort((a,b) => (a.at||0)-(b.at||0));
+  const inTeam = n => teams.some(t => [t.p1, t.p2].some(x => (x||'').toLowerCase() === (n||'').toLowerCase()));
+  const mine = list.find(b => ME && (b.name||'').toLowerCase() === ME.toLowerCase());
+  const label = k => (STRENGTHS.find(([x]) => x === k) || [,'?'])[1];
+  return `<div class="card stack"><div class="sub-h"><h3>Spielerbörse</h3><span class="muted" style="font-size:13px">${list.length} suchen</span></div>
+    ${list.map(b => `<div class="seek"><div><strong>${esc(b.name)}</strong><span class="st">${esc(label(b.strength))}</span>${inTeam(b.name) ? '<span class="muted" style="font-size:12px"> · schon im Team</span>' : ''}</div>
+      <div class="row">${mine && mine.id !== b.id && !inTeam(b.name) ? `<button class="btn small primary" data-pair="${b.id}">Team bilden</button>` : ''}${(mine && mine.id === b.id) || edit ? `<button class="btn small danger" data-seekdel="${b.id}">✕</button>` : ''}</div></div>`).join('') || '<p class="muted">Niemand sucht gerade. Trag dich ein, wenn dir ein Partner fehlt.</p>'}
+    ${!mine ? `<div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:10px"><span class="eyebrow">Ich suche einen Partner</span>
+      <input type="text" id="seekName" placeholder="Dein Name" value="${esc(ME)}" maxlength="20">
+      <div class="row"><span class="muted" style="font-size:14px">Meine Stärke:</span><div class="chip-pick">${STRENGTHS.map(([k,l]) => `<button data-strength="${k}" class="${seekStrength===k?'on':''}">${l}</button>`).join('')}</div></div>
+      <div><button class="btn primary" id="seekAdd">Eintragen</button></div></div>` : `<p class="muted" style="font-size:13px">Du stehst in der Börse (${esc(label(mine.strength))}). Tipp bei jemandem auf „Team bilden“, dann wird das Team-Formular ausgefüllt.</p>`}
+  </div>`;
+}
+function wireBoerse(){
+  main.querySelectorAll('[data-strength]').forEach(b => b.onclick = () => { seekStrength = b.dataset.strength; main.querySelectorAll('[data-strength]').forEach(x => x.classList.toggle('on', x === b)); });
+  if($('#seekAdd')) $('#seekAdd').onclick = () => { const name = $('#seekName').value.trim(); if(!name) return toast('Bitte deinen Namen eintragen.', true); if(!seekStrength) return toast('Bitte eine Stärke antippen.', true);
+    if(!ME) setMe(name); R('boerse/' + uid()).set({name, strength: seekStrength, at: firebase.database.ServerValue.TIMESTAMP}).then(() => toast('Du stehst in der Börse')).catch(e => toast(e.message, true)); };
+  main.querySelectorAll('[data-seekdel]').forEach(b => b.onclick = () => R('boerse/' + b.dataset.seekdel).remove());
+  main.querySelectorAll('[data-pair]').forEach(b => b.onclick = () => { const other = D.boerse[b.dataset.pair]; if(!other) return; const me = Object.entries(D.boerse).find(([,x]) => (x.name||'').toLowerCase() === ME.toLowerCase());
+    editItem = null; render(); const f = $('#tn'); if(f){ $('#tp1').value = ME; $('#tp2').value = other.name; f.focus(); toast(`Teamnamen eintragen und speichern. ${esc(other.name)} und du werden dann aus der Börse genommen.`); f.dataset.pairIds = [b.dataset.pair, me ? me[0] : ''].join(','); } });
 }
 function findTeams(gid){ for(const g of ['A','B']){ const f = GROUP_GAMES[g].find(x => x[0] === gid); if(f) return [f[1], f[2]]; } const ko = koTeams(); return {S1: ko.s1, S2: ko.s2, F: ko.f, P3: ko.p3}[gid] || [null,null]; }
 
