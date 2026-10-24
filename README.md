@@ -27,7 +27,7 @@ Punkte: 100 pro richtiger Antwort plus bis zu 100 Bonus für Schnelligkeit (der 
 
 ## JGA-App (`jga/`)
 
-Eigene Seite unter `/jga/` mit denselben Firebase-Zugangsdaten: Zeitplan (änderbar), Karte (OpenStreetMap, Orte aus dem Zeitplan per „Auf Karte setzen“), Bierpong-Turnier (Teams tragen sich selbst ein; Auslosung per Knopf mit Live-Aufdeckung in 2 Gruppen à 4 Teams, Halbfinale über Kreuz, Platz 3, Finale, live), Quiz-Zugang (zeigt automatisch den Code des gerade laufenden Foto-Quiz) und Hüttenfotos mit Infoblöcken. Alle dürfen alles bearbeiten („Bearbeiten“ oben rechts). Die Datenbankregeln brauchen zusätzlich den Knoten `jga` (siehe `database.rules.json`).
+Eigene Seite unter `/jga/` mit denselben Firebase-Zugangsdaten: Zeitplan (änderbar), Karte (OpenStreetMap, Orte aus dem Zeitplan per „Auf Karte setzen“), Bierpong-Turnier (Teams tragen sich selbst ein, mit Walk-out-Song aus Vorschlägen oder frei – vergebene Songs ausgeblendet; Auslosung per Knopf mit Live-Aufdeckung in 2 Gruppen à 4 Teams, Halbfinale über Kreuz, Platz 3, Finale, live), Quiz-Zugang (zeigt automatisch den Code des gerade laufenden Foto-Quiz) und Hüttenfotos mit Infoblöcken. Alle dürfen alles bearbeiten („Bearbeiten“ oben rechts). Die Datenbankregeln brauchen zusätzlich den Knoten `jga` (siehe `database.rules.json`).
 
 ## Videos als Frage und Auflösung
 

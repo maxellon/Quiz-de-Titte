@@ -304,6 +304,8 @@ let ME = ls.get('jga-me', '');
 let meTeam = ls.get('jga-team', null);
 let meNick = ls.get('jga-nick', '');
 const NICKS = ['Mighty','Hulk','Maestro','Captain','Rakete','Bulldozer','Sniper','Zauberer','Terminator','Rocky','Flash','Joker','Doktor','Admiral','Maverick','Ghost','Tornado','Viking','Kaiser','Pirat','Cowboy','Gladiator','Falke','Bär','Wolf','Eisbär','Ninja','Legende','Boss','Bomber','Tank','Magnum','Torpedo','Blitz','Chef','Sheriff','Rambo','Zorro','Titan','Phantom'];
+const SONGS = ['Eye of the Tiger – Survivor','Thunderstruck – AC/DC','Seven Nation Army – The White Stripes','We Will Rock You – Queen','Enter Sandman – Metallica','Can\'t Hold Us – Macklemore','Lose Yourself – Eminem','Jump Around – House of Pain','Till I Collapse – Eminem','Sandstorm – Darude','Hells Bells – AC/DC','The Final Countdown – Europe','Welcome to the Jungle – Guns N\' Roses','Remember the Name – Fort Minor','Power – Kanye West','Sirius – Alan Parsons Project','Kernkraft 400 – Zombie Nation','Born Slippy – Underworld','Song 2 – Blur','Chelsea Dagger – The Fratellis','Hey Baby – DJ Ötzi','Atemlos – Helene Fischer','Johnny Däpp – Lorenz Büffel','Layla – DJ Robin & Schürze','Cordula Grün – Josh','Major Tom – Peter Schilling','Danza Kuduro – Don Omar','Gangnam Style – PSY','Levels – Avicii','One Step Beyond – Madness'];
+const takenSongs = () => Object.values(D.teams || {}).concat(Object.values(D.tennisTeams || {})).map(t => (t.song||'').toLowerCase()).filter(Boolean);
 const takenNicks = () => peopleList().map(p => (p.nick||'').toLowerCase()).filter(Boolean);
 let tab = ls.get('jga-tab', 'plan'),  edit = false, openGame = null, editItem = null;
 const DAYS = [['do','Donnerstag','6. Mai'],['fr','Freitag','7. Mai'],['sa','Samstag','8. Mai']];
@@ -389,7 +391,7 @@ function openMe(gate){
   const host = gate ? (() => { const g = document.createElement('div'); g.className = 'gate'; g.id = 'gate'; document.body.appendChild(g); return g; })() : main;
   host.insertAdjacentHTML('afterbegin', `<div class="card stack" id="meBox"><h3>${gate ? 'Willkommen beim JGA von Ferdi' : 'Wer bist du?'}</h3><p class="muted" style="font-size:14px">${gate ? 'Einmal eintragen, dann merkt sich dieses Handy alles. Name und Nummer landen in der Teilnehmerliste.' : 'Damit Fotos, Stimmen und Ausgaben deinen Namen tragen. Wird nur auf diesem Handy gemerkt.'}</p>
     <div class="row">${names.map(n => `<button class="btn small ${n===ME?'primary':''}" data-me="${esc(n)}">${esc(n)}</button>`).join('')}</div>
-    <div class="editrow"><input type="text" id="meName" placeholder="${names.length ? 'Oder Namen eintippen' : 'Dein Name'}" value="${esc(ME)}" maxlength="20"><input type="text" id="mePhone" inputmode="tel" placeholder="Handynummer" value="${esc(myPhone())}" maxlength="25"></div>
+    <div class="editrow"><label class="field">Dein Name<input type="text" id="meName" placeholder="${names.length ? 'antippen oder eintippen' : 'Vorname'}" value="${esc(ME)}" maxlength="20"></label><label class="field">Handynummer<input type="text" id="mePhone" inputmode="tel" placeholder="+49 …" value="${esc(myPhone())}" maxlength="25"></label></div>
     <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="eyebrow">Dein Spitzname</span>
       <input type="text" id="meNick" placeholder="z. B. Mighty" value="${esc(meNick)}" maxlength="16">
       <div class="chip-pick" id="nickPick">${NICKS.filter(n => !takenNicks().includes(n.toLowerCase()) || n.toLowerCase() === meNick.toLowerCase()).map(n => `<button data-nick="${esc(n)}" class="${n.toLowerCase()===meNick.toLowerCase()?'on':''}" style="padding:5px 11px;font-size:14px">${esc(n)}</button>`).join('')}</div>
@@ -695,12 +697,15 @@ function renderTour(){
   const ko = koTeams();
   const fr = result('F'), champ = fr ? (fr.a > fr.b ? ko.f[0] : ko.f[1]) : null;
   const tbl = g => `<div class="card"><h3>Gruppe ${g}</h3><table><thead><tr><th>Team</th><th class="n">S</th><th class="n">N</th><th class="n">+/−</th></tr></thead><tbody>
-    ${standings(g).map((s,i) => `<tr class="${i<2 && drawn()?'q':''}"><td><span class="nm">${esc(teamName(s.i))}</span><div class="muted" style="font-size:12px;font-weight:400">${esc(teamSub(s.i))}</div></td><td class="n">${s.w}</td><td class="n">${s.l}</td><td class="n">${s.pf-s.pa>0?'+':''}${s.pf-s.pa}</td></tr>`).join('')}
+    ${standings(g).map((s,i) => `<tr class="${i<2 && drawn()?'q':''}"><td><span class="nm">${esc(teamName(s.i))}</span><div class="muted" style="font-size:12px;font-weight:400">${esc(teamSub(s.i))}${(slotTeam(s.i)||{}).song && revealed(s.i) ? ` · 🎵 ${esc(slotTeam(s.i).song)}` : ''}</div></td><td class="n">${s.w}</td><td class="n">${s.l}</td><td class="n">${s.pf-s.pa>0?'+':''}${s.pf-s.pa}</td></tr>`).join('')}
   </tbody></table><div style="margin-top:8px">${GROUP_GAMES[g].map(([gid,a,b]) => gameRow(gid,a,b)).join('')}</div></div>`;
-  const regList = teams.map((t,n) => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div class="grow"><strong>${esc(t.name || t.p1 || 'Team')}</strong><div class="muted" style="font-size:13px">${esc(t.name ? [t.p1,t.p2].filter(Boolean).join(' & ') : (t.p2||''))}</div></div>${edit ? `<div class="row"><button class="btn small" data-tedit="${t.id}">Ändern</button><button class="btn small danger" data-tdel="${t.id}">✕</button></div>` : ''}</div>`).join('');
+  const regList = teams.map((t,n) => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div class="grow"><strong>${esc(t.name || t.p1 || 'Team')}</strong><div class="muted" style="font-size:13px">${esc(t.name ? [t.p1,t.p2].filter(Boolean).join(' & ') : (t.p2||''))}${t.song ? ` · 🎵 ${esc(t.song)}` : ''}</div></div>${edit ? `<div class="row"><button class="btn small" data-tedit="${t.id}">Ändern</button><button class="btn small danger" data-tdel="${t.id}">✕</button></div>` : ''}</div>`).join('');
   const regForm = (t = {}) => `<div class="card stack" id="regForm"><h3>${t.id ? 'Team ändern' : 'Team eintragen'}</h3>
       <label class="field">Teamname<input type="text" id="tn" value="${esc(t.name||'')}" placeholder="z. B. Die Becherhelden" maxlength="30"></label>
       <div class="editrow"><label class="field">Spieler 1<input type="text" id="tp1" value="${esc(t.p1||'')}" placeholder="Vorname" maxlength="20"></label><label class="field">Spieler 2<input type="text" id="tp2" value="${esc(t.p2||'')}" placeholder="Vorname" maxlength="20"></label></div>
+      <label class="field">Walk-out-Song<input type="text" id="tsong" value="${esc(t.song||'')}" placeholder="Titel – Interpret" maxlength="60"></label>
+      <div class="chip-pick" id="songPick">${SONGS.filter(x => !takenSongs().includes(x.toLowerCase()) || x.toLowerCase() === (t.song||'').toLowerCase()).map(x => `<button data-song="${esc(x)}" class="${x.toLowerCase()===(t.song||'').toLowerCase()?'on':''}" style="padding:5px 10px;font-size:13px">${esc(x)}</button>`).join('')}</div>
+      <p class="muted" style="font-size:12px">Einen antippen oder selbst eintragen. Vergebene Songs werden nicht mehr angezeigt.</p>
       <div class="row"><button class="btn primary" id="tsave" data-id="${t.id||''}">${t.id ? 'Speichern' : 'Eintragen'}</button>${t.id ? '<button class="btn" id="tcancel">Abbrechen</button>' : ''}</div></div>`;
   const editing = editItem && TD().teams[editItem] ? {id: editItem, ...TD().teams[editItem]} : null;
   const animating = TD().draw && TD().draw.at && (Date.now() - TD().draw.at) < 9 * REVEAL_MS;
@@ -731,16 +736,20 @@ function renderTour(){
     const id = $('#tsave').dataset.id || uid();
     const dup = teamList().some(t => t.id !== id && (t.name||'').toLowerCase() === name.toLowerCase());
     if(dup) return toast('Den Teamnamen gibt es schon.', true);
-    const data = {name, p1, p2}; if(!$('#tsave').dataset.id) data.at = firebase.database.ServerValue.TIMESTAMP;
+    const song = $('#tsong').value.trim();
+    if(song && Object.entries({...(D.teams||{}), ...(D.tennisTeams||{})}).some(([tid,t]) => tid !== id && (t.song||'').toLowerCase() === song.toLowerCase())) return toast('Den Walk-out-Song hat schon ein anderes Team.', true);
+    const data = {name, p1, p2, song}; if(!$('#tsave').dataset.id) data.at = firebase.database.ServerValue.TIMESTAMP;
     const pairIds = ($('#tn').dataset.pairIds || '').split(',').filter(Boolean);
     R(T.teams + '/' + id).update(data).then(() => { pendingPair = null; pairIds.forEach(pid => R('boerse/' + pid).remove()); Object.entries(D.boerse).forEach(([bid,x]) => { if([name, p1, p2].some(n => n && (x.name||'').toLowerCase() === n.toLowerCase())) R('boerse/' + bid).remove(); }); editItem = null; toast('Gespeichert'); render(); }).catch(e => toast(e.message, true));
   };
+  main.querySelectorAll('#songPick [data-song]').forEach(b => b.onclick = () => { $('#tsong').value = b.dataset.song; main.querySelectorAll('#songPick [data-song]').forEach(x => x.classList.toggle('on', x === b)); });
+  if($('#tsong')) $('#tsong').oninput = () => { const v = $('#tsong').value.trim().toLowerCase(); main.querySelectorAll('#songPick [data-song]').forEach(x => x.classList.toggle('on', x.dataset.song.toLowerCase() === v)); };
   if($('#tcancel')) $('#tcancel').onclick = () => { editItem = null; render(); };
   main.querySelectorAll('[data-tedit]').forEach(b => b.onclick = () => { editItem = b.dataset.tedit; render(); });
   main.querySelectorAll('[data-tdel]').forEach(b => b.onclick = () => { if(b.dataset.armed){ R(T.teams + '/' + b.dataset.tdel).remove(); return; } b.dataset.armed = 1; b.textContent = 'Sicher?'; });
   if($('#copyTeams')) $('#copyTeams').onclick = () => {
     const b = $('#copyTeams'); if(teams.length && !b.dataset.armed){ b.dataset.armed = 1; b.textContent = 'Vorhandene LAG-Teams werden ersetzt. Wirklich?'; return; }
-    const src = Object.entries(D.teams || {}).filter(([,t]) => t.name || t.p1); const u = {}; src.forEach(([id,t]) => { u[id] = {name: t.name || '', p1: t.p1 || '', p2: t.p2 || '', at: t.at || 0}; });
+    const src = Object.entries(D.teams || {}).filter(([,t]) => t.name || t.p1); const u = {}; src.forEach(([id,t]) => { u[id] = {name: t.name || '', p1: t.p1 || '', p2: t.p2 || '', song: t.song || '', at: t.at || 0}; });
     R(T.teams).set(u).then(() => toast(`${src.length} Teams übernommen`)).catch(e => toast(e.message, true));
   };
   if($('#drawBtn')) $('#drawBtn').onclick = () => {
