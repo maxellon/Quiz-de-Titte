@@ -221,6 +221,8 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
 .seek{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
 .seek:first-child{border-top:0}
 .seek .st{display:inline-block;padding:2px 9px;border-radius:999px;background:var(--soft);font-size:12px;font-weight:700;margin-left:6px}
+.gate{position:fixed;inset:0;z-index:40;background:color-mix(in srgb,var(--bg) 92%,transparent);overflow:auto;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.gate .card{max-width:520px;margin:24px auto}
 /* Wertung */
 .score{display:grid;grid-template-columns:1fr repeat(4,56px) 54px;gap:4px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
 .score input{padding:4px;text-align:center;font-size:14px}
@@ -378,22 +380,30 @@ if(tab === 'photos') subWall();
 /* Ich bin … */
 const peopleList = () => Object.entries(D.people).map(([id,p]) => ({id, ...p})).sort((a,b) => (a.name||'').localeCompare(b.name||'', 'de'));
 function renderMe(){ $('#meBtn').textContent = ME ? `Ich: ${ME}` : 'Ich bin …'; }
-$('#meBtn').onclick = () => {
+function openMe(gate){
   const names = peopleList().map(p => p.name).filter(Boolean);
-  main.insertAdjacentHTML('afterbegin', `<div class="card stack" id="meBox"><h3>Wer bist du?</h3><p class="muted" style="font-size:14px">Damit Fotos, Stimmen und Ausgaben deinen Namen tragen. Wird nur auf diesem Handy gemerkt.</p>
+  if($('#meBox')) $('#meBox').remove(); if($('#gate')) $('#gate').remove();
+  const host = gate ? (() => { const g = document.createElement('div'); g.className = 'gate'; g.id = 'gate'; document.body.appendChild(g); return g; })() : main;
+  host.insertAdjacentHTML('afterbegin', `<div class="card stack" id="meBox"><h3>${gate ? 'Willkommen beim JGA von Ferdi' : 'Wer bist du?'}</h3><p class="muted" style="font-size:14px">${gate ? 'Einmal eintragen, dann merkt sich dieses Handy alles. Name und Nummer landen in der Teilnehmerliste.' : 'Damit Fotos, Stimmen und Ausgaben deinen Namen tragen. Wird nur auf diesem Handy gemerkt.'}</p>
     <div class="row">${names.map(n => `<button class="btn small ${n===ME?'primary':''}" data-me="${esc(n)}">${esc(n)}</button>`).join('')}</div>
-    <div class="editrow"><input type="text" id="meName" placeholder="Oder Namen eintippen" value="${esc(ME)}" maxlength="20"><input type="text" id="mePhone" inputmode="tel" placeholder="Handynummer" value="${esc(myPhone())}" maxlength="25"></div>
-    <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="eyebrow">Team für Bierpong und LAG (optional)</span>
+    <div class="editrow"><input type="text" id="meName" placeholder="${names.length ? 'Oder Namen eintippen' : 'Dein Name'}" value="${esc(ME)}" maxlength="20"><input type="text" id="mePhone" inputmode="tel" placeholder="Handynummer" value="${esc(myPhone())}" maxlength="25"></div>
+    <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="eyebrow">Team für Bierpong und LAG${gate ? '' : ' (optional)'}</span>
       <div class="chip-pick"><button id="meHasTeam" class="${meTeam==='has'?'on':''}">Habe bereits ein Team</button><button id="meSeeks" class="${meTeam==='seeks'?'on':''}">Suche noch einen Mitspieler</button></div>
       <div id="meStrength" class="row" ${meTeam==='seeks'?'':'hidden'}><span class="muted" style="font-size:14px">Meine Stärke:</span><div class="chip-pick">${STRENGTHS.map(([k,l]) => `<button data-strength="${k}" class="${seekStrength===k?'on':''}">${l}</button>`).join('')}</div></div></div>
     <div class="row"><button class="btn primary" id="meSave">Speichern</button><span class="muted" style="font-size:13px">Die Nummer landet in der Teilnehmerliste (Orga), damit euch alle erreichen.</span></div></div>`);
   $('#meHasTeam').onclick = () => { meTeam = 'has'; ls.set('jga-team', meTeam); $('#meHasTeam').classList.add('on'); $('#meSeeks').classList.remove('on'); $('#meStrength').hidden = true; };
   $('#meSeeks').onclick = () => { meTeam = 'seeks'; ls.set('jga-team', meTeam); $('#meSeeks').classList.add('on'); $('#meHasTeam').classList.remove('on'); $('#meStrength').hidden = false; };
-  main.querySelectorAll('#meBox [data-strength]').forEach(b => b.onclick = () => { seekStrength = b.dataset.strength; main.querySelectorAll('#meBox [data-strength]').forEach(x => x.classList.toggle('on', x === b)); });
-  main.querySelectorAll('[data-me]').forEach(b => b.onclick = () => { $('#meName').value = b.dataset.me; $('#mePhone').value = phoneOf(b.dataset.me); main.querySelectorAll('[data-me]').forEach(x => x.classList.toggle('primary', x === b)); });
-  $('#meSave').onclick = () => { const n = $('#meName').value.trim(); setMe(n, $('#mePhone').value.trim()); if(n && meTeam === 'seeks' && seekStrength) addSeek(n, seekStrength); };
-  window.scrollTo({top: $('#meBox').offsetTop - 70, behavior:'smooth'});
-};
+  document.querySelectorAll('#meBox [data-strength]').forEach(b => b.onclick = () => { seekStrength = b.dataset.strength; document.querySelectorAll('#meBox [data-strength]').forEach(x => x.classList.toggle('on', x === b)); });
+  document.querySelectorAll('#meBox [data-me]').forEach(b => b.onclick = () => { $('#meName').value = b.dataset.me; $('#mePhone').value = phoneOf(b.dataset.me); document.querySelectorAll('#meBox [data-me]').forEach(x => x.classList.toggle('primary', x === b)); });
+  $('#meSave').onclick = () => { const n = $('#meName').value.trim();
+    if(gate){ if(!n) return toast('Bitte deinen Namen eintragen.', true); if(!meTeam) return toast('Bitte angeben, ob du schon ein Team hast.', true); if(meTeam === 'seeks' && !seekStrength) return toast('Bitte deine Stärke antippen.', true); }
+    setMe(n, $('#mePhone').value.trim()); if(n && meTeam === 'seeks' && seekStrength) addSeek(n, seekStrength);
+    if($('#gate')) $('#gate').remove(); };
+  if(!gate) window.scrollTo({top: $('#meBox').offsetTop - 70, behavior:'smooth'});
+}
+$('#meBtn').onclick = () => openMe(false);
+/* Erstes Öffnen: Eintragen ist Pflicht (wird pro Handy gemerkt) */
+if(!ME) setTimeout(() => { if(!ME) openMe(true); }, 400);
 const personOf = n => peopleList().find(p => (p.name||'').toLowerCase() === (n||'').toLowerCase());
 const phoneOf = n => (personOf(n) || {}).phone || '';
 const myPhone = () => phoneOf(ME);
