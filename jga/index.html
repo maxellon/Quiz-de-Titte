@@ -302,6 +302,9 @@ const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}
 const DEVICE = (() => { let d = ls.get('jga-device', null); if(!d){ d = uid(); ls.set('jga-device', d); } return d; })();
 let ME = ls.get('jga-me', '');
 let meTeam = ls.get('jga-team', null);
+let meNick = ls.get('jga-nick', '');
+const NICKS = ['Mighty','Hulk','Maestro','Captain','Rakete','Bulldozer','Sniper','Zauberer','Terminator','Rocky','Flash','Joker','Doktor','Admiral','Maverick','Ghost','Tornado','Viking','Kaiser','Pirat','Cowboy','Gladiator','Falke','Bär','Wolf','Eisbär','Ninja','Legende','Boss','Bomber','Tank','Magnum','Torpedo','Blitz','Chef','Sheriff','Rambo','Zorro','Titan','Phantom'];
+const takenNicks = () => peopleList().map(p => (p.nick||'').toLowerCase()).filter(Boolean);
 let tab = ls.get('jga-tab', 'plan'),  edit = false, openGame = null, editItem = null;
 const DAYS = [['do','Donnerstag','6. Mai'],['fr','Freitag','7. Mai'],['sa','Samstag','8. Mai']];
 const SEED_SCHEDULE = [
@@ -379,7 +382,7 @@ $('#tabs').onclick = e => { const b = e.target.closest('.tab'); if(!b) return; t
 if(tab === 'photos') subWall();
 /* Ich bin … */
 const peopleList = () => Object.entries(D.people).map(([id,p]) => ({id, ...p})).sort((a,b) => (a.name||'').localeCompare(b.name||'', 'de'));
-function renderMe(){ $('#meBtn').textContent = ME ? `Ich: ${ME}` : 'Ich bin …'; }
+function renderMe(){ $('#meBtn').textContent = ME ? `Ich: ${ME}${meNick ? ' „' + meNick + '“' : ''}` : 'Ich bin …'; }
 function openMe(gate){
   const names = peopleList().map(p => p.name).filter(Boolean);
   if($('#meBox')) $('#meBox').remove(); if($('#gate')) $('#gate').remove();
@@ -387,17 +390,26 @@ function openMe(gate){
   host.insertAdjacentHTML('afterbegin', `<div class="card stack" id="meBox"><h3>${gate ? 'Willkommen beim JGA von Ferdi' : 'Wer bist du?'}</h3><p class="muted" style="font-size:14px">${gate ? 'Einmal eintragen, dann merkt sich dieses Handy alles. Name und Nummer landen in der Teilnehmerliste.' : 'Damit Fotos, Stimmen und Ausgaben deinen Namen tragen. Wird nur auf diesem Handy gemerkt.'}</p>
     <div class="row">${names.map(n => `<button class="btn small ${n===ME?'primary':''}" data-me="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <div class="editrow"><input type="text" id="meName" placeholder="${names.length ? 'Oder Namen eintippen' : 'Dein Name'}" value="${esc(ME)}" maxlength="20"><input type="text" id="mePhone" inputmode="tel" placeholder="Handynummer" value="${esc(myPhone())}" maxlength="25"></div>
+    <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="eyebrow">Dein Spitzname</span>
+      <input type="text" id="meNick" placeholder="z. B. Mighty" value="${esc(meNick)}" maxlength="16">
+      <div class="chip-pick" id="nickPick">${NICKS.filter(n => !takenNicks().includes(n.toLowerCase()) || n.toLowerCase() === meNick.toLowerCase()).map(n => `<button data-nick="${esc(n)}" class="${n.toLowerCase()===meNick.toLowerCase()?'on':''}" style="padding:5px 11px;font-size:14px">${esc(n)}</button>`).join('')}</div>
+      <p class="muted" style="font-size:12px">Einer antippen oder selbst ausdenken. Vergebene Spitznamen werden nicht mehr angezeigt.</p></div>
     <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="eyebrow">Team für Bierpong und LAG${gate ? '' : ' (optional)'}</span>
       <div class="chip-pick"><button id="meHasTeam" class="${meTeam==='has'?'on':''}">Habe bereits ein Team</button><button id="meSeeks" class="${meTeam==='seeks'?'on':''}">Suche noch einen Mitspieler</button></div>
       <div id="meStrength" class="row" ${meTeam==='seeks'?'':'hidden'}><span class="muted" style="font-size:14px">Meine Stärke:</span><div class="chip-pick">${STRENGTHS.map(([k,l]) => `<button data-strength="${k}" class="${seekStrength===k?'on':''}">${l}</button>`).join('')}</div></div></div>
     <div class="row"><button class="btn primary" id="meSave">Speichern</button><span class="muted" style="font-size:13px">Die Nummer landet in der Teilnehmerliste (Orga), damit euch alle erreichen.</span></div></div>`);
+  document.querySelectorAll('#nickPick [data-nick]').forEach(b => b.onclick = () => { $('#meNick').value = b.dataset.nick; document.querySelectorAll('#nickPick [data-nick]').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#meNick').oninput = () => { const v = $('#meNick').value.trim().toLowerCase(); document.querySelectorAll('#nickPick [data-nick]').forEach(x => x.classList.toggle('on', x.dataset.nick.toLowerCase() === v)); };
   $('#meHasTeam').onclick = () => { meTeam = 'has'; ls.set('jga-team', meTeam); $('#meHasTeam').classList.add('on'); $('#meSeeks').classList.remove('on'); $('#meStrength').hidden = true; };
   $('#meSeeks').onclick = () => { meTeam = 'seeks'; ls.set('jga-team', meTeam); $('#meSeeks').classList.add('on'); $('#meHasTeam').classList.remove('on'); $('#meStrength').hidden = false; };
   document.querySelectorAll('#meBox [data-strength]').forEach(b => b.onclick = () => { seekStrength = b.dataset.strength; document.querySelectorAll('#meBox [data-strength]').forEach(x => x.classList.toggle('on', x === b)); });
   document.querySelectorAll('#meBox [data-me]').forEach(b => b.onclick = () => { $('#meName').value = b.dataset.me; $('#mePhone').value = phoneOf(b.dataset.me); document.querySelectorAll('#meBox [data-me]').forEach(x => x.classList.toggle('primary', x === b)); });
   $('#meSave').onclick = () => { const n = $('#meName').value.trim();
-    if(gate){ if(!n) return toast('Bitte deinen Namen eintragen.', true); if(!meTeam) return toast('Bitte angeben, ob du schon ein Team hast.', true); if(meTeam === 'seeks' && !seekStrength) return toast('Bitte deine Stärke antippen.', true); }
-    setMe(n, $('#mePhone').value.trim()); if(n && meTeam === 'seeks' && seekStrength) addSeek(n, seekStrength);
+    const nick = $('#meNick').value.trim();
+    if(gate){ if(!n) return toast('Bitte deinen Namen eintragen.', true); if(!nick) return toast('Bitte einen Spitznamen wählen.', true); if(!meTeam) return toast('Bitte angeben, ob du schon ein Team hast.', true); if(meTeam === 'seeks' && !seekStrength) return toast('Bitte deine Stärke antippen.', true); }
+    if(nick && peopleList().some(p => (p.nick||'').toLowerCase() === nick.toLowerCase() && (p.name||'').toLowerCase() !== n.toLowerCase())) return toast('Den Spitznamen hat schon jemand.', true);
+    meNick = nick; ls.set('jga-nick', nick);
+    setMe(n, $('#mePhone').value.trim(), nick); if(n && meTeam === 'seeks' && seekStrength) addSeek(n, seekStrength);
     if($('#gate')) $('#gate').remove(); };
   if(!gate) window.scrollTo({top: $('#meBox').offsetTop - 70, behavior:'smooth'});
 }
@@ -407,12 +419,12 @@ if(!ME) setTimeout(() => { if(!ME) openMe(true); }, 400);
 const personOf = n => peopleList().find(p => (p.name||'').toLowerCase() === (n||'').toLowerCase());
 const phoneOf = n => (personOf(n) || {}).phone || '';
 const myPhone = () => phoneOf(ME);
-function setMe(n, phone){
+function setMe(n, phone, nick){
   if(!n) return toast('Bitte einen Namen wählen oder eintippen.', true);
   ME = n; ls.set('jga-me', n); renderMe();
   const ex = personOf(n);
-  if(ex){ if(phone !== undefined && phone !== (ex.phone||'')) R('people/' + ex.id + '/phone').set(phone); }
-  else R('people/' + uid()).set({name: n, phone: phone || '', at: firebase.database.ServerValue.TIMESTAMP});
+  if(ex){ const u = {}; if(phone !== undefined && phone !== (ex.phone||'')) u.phone = phone; if(nick !== undefined && nick !== (ex.nick||'')) u.nick = nick; if(Object.keys(u).length) R('people/' + ex.id).update(u); }
+  else R('people/' + uid()).set({name: n, phone: phone || '', nick: nick || '', at: firebase.database.ServerValue.TIMESTAMP});
   toast('Gespeichert'); render();
 }
 renderMe();
@@ -965,7 +977,7 @@ function renderOrga(){
     <p class="muted" style="font-size:14px">Orga-Team: <a href="todo.html" style="color:var(--pine);font-weight:500">Orga-Liste öffnen</a> (wer übernimmt was, abhaken)</p>
     <section class="card stack"><div class="sub-h"><h2>Teilnehmer</h2><span class="muted" style="font-size:13px">${people.length} Personen</span></div>
       ${people.map(p => edit ? `<div class="row" style="padding:6px 0;border-top:1px solid var(--line)"><input type="text" class="grow" data-person="${p.id}" data-k="name" value="${esc(p.name||'')}" placeholder="Name"><input type="text" class="grow" data-person="${p.id}" data-k="phone" value="${esc(p.phone||'')}" placeholder="Handy" inputmode="tel"><button class="btn small danger" data-pdel2="${p.id}">✕</button></div>`
-        : `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><strong>${esc(p.name)}</strong>${p.phone ? `<span style="font-variant-numeric:tabular-nums;user-select:all">${esc(p.phone)}</span>` : ''}</div>`).join('') || '<p class="muted">Noch niemand eingetragen.</p>'}
+        : `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><strong>${esc(p.name)}${p.nick ? ` <span class="muted" style="font-weight:400">„${esc(p.nick)}“</span>` : ''}</strong>${p.phone ? `<span style="font-variant-numeric:tabular-nums;user-select:all">${esc(p.phone)}</span>` : ''}</div>`).join('') || '<p class="muted">Noch niemand eingetragen.</p>'}
       <div class="row"><input type="text" id="personNew" class="grow" placeholder="Name" maxlength="20"><button class="btn primary" id="personAdd">+</button></div>
       <p class="muted" style="font-size:13px">Handynummer über „Bearbeiten“ ergänzen.</p>
     </section>
