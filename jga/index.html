@@ -248,6 +248,7 @@ tr.q td:first-child .nm::after{content:" ↑";color:var(--ok)}
   <button class="tab" data-tab="tour"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 12v4M8 20h8M9 16h6"/></svg>Bierpong</button>
   <button class="tab" data-tab="ibk"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 17l-2 4M16 17l2 4M8 7h.01M16 7h.01"/></svg>Innsbruck</button>
   <button class="tab" data-tab="lag"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L20 20M6 6l6 6M4.5 10.5l5-5"/></svg>LAG</button>
+  <button class="tab" data-tab="boerse"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M10 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>Börse</button>
   <button class="tab" data-tab="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"/></svg>Quiz</button>
   <button class="tab" data-tab="photos"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Fotos</button>
   <button class="tab" data-tab="wertung"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V10M12 20V4M18 20v-7"/></svg>Teamwertung</button>
@@ -298,6 +299,7 @@ const D = { schedule: {}, teams: {}, results: {}, quiz: {}, photos: {}, info: {}
   people: {}, expenses: {}, scores: {}, teamScores: {}, boerse: {}, tennisTeams: {}, tennisResults: {}, tennisDraw: null, wall: {}, songs: {}, polls: {} };
 const DEVICE = (() => { let d = ls.get('jga-device', null); if(!d){ d = uid(); ls.set('jga-device', d); } return d; })();
 let ME = ls.get('jga-me', '');
+let meTeam = ls.get('jga-team', null);
 let tab = ls.get('jga-tab', 'plan'),  edit = false, openGame = null, editItem = null;
 const DAYS = [['do','Donnerstag','6. Mai'],['fr','Freitag','7. Mai'],['sa','Samstag','8. Mai']];
 const SEED_SCHEDULE = [
@@ -381,9 +383,15 @@ $('#meBtn').onclick = () => {
   main.insertAdjacentHTML('afterbegin', `<div class="card stack" id="meBox"><h3>Wer bist du?</h3><p class="muted" style="font-size:14px">Damit Fotos, Stimmen und Ausgaben deinen Namen tragen. Wird nur auf diesem Handy gemerkt.</p>
     <div class="row">${names.map(n => `<button class="btn small ${n===ME?'primary':''}" data-me="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <div class="editrow"><input type="text" id="meName" placeholder="Oder Namen eintippen" value="${esc(ME)}" maxlength="20"><input type="text" id="mePhone" inputmode="tel" placeholder="Handynummer" value="${esc(myPhone())}" maxlength="25"></div>
+    <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="eyebrow">Team für Bierpong und LAG (optional)</span>
+      <div class="chip-pick"><button id="meHasTeam" class="${meTeam==='has'?'on':''}">Habe bereits ein Team</button><button id="meSeeks" class="${meTeam==='seeks'?'on':''}">Suche noch einen Mitspieler</button></div>
+      <div id="meStrength" class="row" ${meTeam==='seeks'?'':'hidden'}><span class="muted" style="font-size:14px">Meine Stärke:</span><div class="chip-pick">${STRENGTHS.map(([k,l]) => `<button data-strength="${k}" class="${seekStrength===k?'on':''}">${l}</button>`).join('')}</div></div></div>
     <div class="row"><button class="btn primary" id="meSave">Speichern</button><span class="muted" style="font-size:13px">Die Nummer landet in der Teilnehmerliste (Orga), damit euch alle erreichen.</span></div></div>`);
+  $('#meHasTeam').onclick = () => { meTeam = 'has'; ls.set('jga-team', meTeam); $('#meHasTeam').classList.add('on'); $('#meSeeks').classList.remove('on'); $('#meStrength').hidden = true; };
+  $('#meSeeks').onclick = () => { meTeam = 'seeks'; ls.set('jga-team', meTeam); $('#meSeeks').classList.add('on'); $('#meHasTeam').classList.remove('on'); $('#meStrength').hidden = false; };
+  main.querySelectorAll('#meBox [data-strength]').forEach(b => b.onclick = () => { seekStrength = b.dataset.strength; main.querySelectorAll('#meBox [data-strength]').forEach(x => x.classList.toggle('on', x === b)); });
   main.querySelectorAll('[data-me]').forEach(b => b.onclick = () => { $('#meName').value = b.dataset.me; $('#mePhone').value = phoneOf(b.dataset.me); main.querySelectorAll('[data-me]').forEach(x => x.classList.toggle('primary', x === b)); });
-  $('#meSave').onclick = () => setMe($('#meName').value.trim(), $('#mePhone').value.trim());
+  $('#meSave').onclick = () => { const n = $('#meName').value.trim(); setMe(n, $('#mePhone').value.trim()); if(n && meTeam === 'seeks' && seekStrength) addSeek(n, seekStrength); };
   window.scrollTo({top: $('#meBox').offsetTop - 70, behavior:'smooth'});
 };
 const personOf = n => peopleList().find(p => (p.name||'').toLowerCase() === (n||'').toLowerCase());
@@ -406,7 +414,7 @@ function render(){
   pendingRender = false;
   syncEta();
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ({plan: renderPlan, map: renderMap, eta: renderEta, ibk: renderIbk, tour: renderTour, lag: renderTour, quiz: renderQuiz, wertung: renderWertung, musik: renderMusik, photos: renderPhotos, orga: renderOrga, info: renderInfo})[tab]();
+  ({plan: renderPlan, map: renderMap, eta: renderEta, ibk: renderIbk, tour: renderTour, lag: renderTour, quiz: renderQuiz, wertung: renderWertung, musik: renderMusik, boerse: renderBoerse, photos: renderPhotos, orga: renderOrga, info: renderInfo})[tab]();
 }
 main.addEventListener('focusout', () => setTimeout(() => { if(pendingRender && !typing()) render(); }, 80));
 function save(path, value){ return R(path).set(value).catch(e => toast(/PERMISSION_DENIED/i.test(e.message) ? 'Speichern abgelehnt: In Firebase fehlen die Regeln für „jga“.' : 'Speichern fehlgeschlagen: ' + e.message, true)); }
@@ -682,8 +690,7 @@ function renderTour(){
         <div class="notice">${T.note}</div>
         <div class="row">${T === TOURS.lag && Object.keys(D.teams || {}).length ? `<button class="btn" id="copyTeams">Teams vom Bierpong übernehmen</button>` : ''}<button class="btn amber" id="drawBtn" ${teams.length === 8 ? '' : 'disabled'}>${teams.length === 8 ? 'Auslosen' : `Auslosen (noch ${8 - teams.length} Team${8-teams.length===1?'':'s'} fehlen)`}</button></div>
       </div>
-      ${boerseCard(teams)}
-      ${editing ? regForm(editing) : (teams.length < 8 ? regForm() : '')}`
+      ${editing ? regForm(editing) : (teams.length < 8 || pendingPair ? regForm() : '')}`
     : `${animating ? '<div class="notice" style="text-align:center;font-weight:700">Auslosung läuft …</div>' : ''}
       ${edit ? `<div class="card stack"><h3>Teams</h3>${regList}${editing ? regForm(editing) : ''}
         <div class="row"><button class="btn danger" id="undoDraw">Auslosung zurücksetzen</button><button class="btn danger" id="resetTour">Alle Ergebnisse löschen</button></div></div>` : ''}
@@ -693,7 +700,8 @@ function renderTour(){
         <div class="card"><h3>Halbfinale</h3>${gameRow('S1', ko.s1[0], ko.s1[1], '1. Gruppe A – 2. Gruppe B')}${gameRow('S2', ko.s2[0], ko.s2[1], '1. Gruppe B – 2. Gruppe A')}</div>
         <div class="card"><h3>Finale</h3>${gameRow('F', ko.f[0], ko.f[1])}<h3 style="margin-top:12px">Spiel um Platz 3</h3>${gameRow('P3', ko.p3[0], ko.p3[1])}</div>
       </div>`}`;
-  wireEdit(); wireBoerse();
+  wireEdit();
+  if(pendingPair && $('#tn')){ $('#tp1').value = pendingPair.p1; $('#tp2').value = pendingPair.p2; $('#tn').dataset.pairIds = pendingPair.ids.join(','); $('#tn').focus(); }
   if(animating){ clearTimeout(renderTour.t); renderTour.t = setTimeout(() => { if(tab === 'tour' || tab === 'lag') render(); }, REVEAL_MS); }
   if($('#tsave')) $('#tsave').onclick = () => {
     const name = $('#tn').value.trim(), p1 = $('#tp1').value.trim(), p2 = $('#tp2').value.trim();
@@ -703,7 +711,7 @@ function renderTour(){
     if(dup) return toast('Den Teamnamen gibt es schon.', true);
     const data = {name, p1, p2}; if(!$('#tsave').dataset.id) data.at = firebase.database.ServerValue.TIMESTAMP;
     const pairIds = ($('#tn').dataset.pairIds || '').split(',').filter(Boolean);
-    R(T.teams + '/' + id).update(data).then(() => { pairIds.forEach(pid => R('boerse/' + pid).remove()); Object.entries(D.boerse).forEach(([bid,x]) => { if([name, p1, p2].some(n => n && (x.name||'').toLowerCase() === n.toLowerCase())) R('boerse/' + bid).remove(); }); editItem = null; toast('Gespeichert'); render(); }).catch(e => toast(e.message, true));
+    R(T.teams + '/' + id).update(data).then(() => { pendingPair = null; pairIds.forEach(pid => R('boerse/' + pid).remove()); Object.entries(D.boerse).forEach(([bid,x]) => { if([name, p1, p2].some(n => n && (x.name||'').toLowerCase() === n.toLowerCase())) R('boerse/' + bid).remove(); }); editItem = null; toast('Gespeichert'); render(); }).catch(e => toast(e.message, true));
   };
   if($('#tcancel')) $('#tcancel').onclick = () => { editItem = null; render(); };
   main.querySelectorAll('[data-tedit]').forEach(b => b.onclick = () => { editItem = b.dataset.tedit; render(); });
@@ -725,30 +733,39 @@ function renderTour(){
   if($('#sclear')) $('#sclear').onclick = () => { R(T.results + '/' + openGame).remove(); openGame = null; };
   if($('#resetTour')) $('#resetTour').onclick = () => { const b = $('#resetTour'); if(b.dataset.armed){ R(T.results).remove(); edit = false; return; } b.dataset.armed = 1; b.textContent = 'Wirklich alle Ergebnisse löschen?'; };
 }
-/* Spielerbörse: wer noch keinen Partner hat, trägt sich mit seiner Stärke ein */
+/* Spielerbörse (eigener Reiter): nur wer einen Partner sucht, trägt sich ein */
 const STRENGTHS = [['quiz','Quiz'],['pong','Bierpong'],['lag','LAG']];
-let seekStrength = null;
-function boerseCard(teams){
+const strengthLabel = k => (STRENGTHS.find(([x]) => x === k) || [,'?'])[1];
+let seekStrength = null, pendingPair = null;
+function renderBoerse(){
+  const teams = teamList();
   const list = Object.entries(D.boerse).map(([id,b]) => ({id, ...b})).sort((a,b) => (a.at||0)-(b.at||0));
-  const inTeam = n => teams.some(t => [t.p1, t.p2].some(x => (x||'').toLowerCase() === (n||'').toLowerCase()));
+  const inTeam = n => Object.values(D.teams || {}).some(t => [t.p1, t.p2].some(x => (x||'').toLowerCase() === (n||'').toLowerCase()));
   const mine = list.find(b => ME && (b.name||'').toLowerCase() === ME.toLowerCase());
-  const label = k => (STRENGTHS.find(([x]) => x === k) || [,'?'])[1];
-  return `<div class="card stack"><div class="sub-h"><h3>Spielerbörse</h3><span class="muted" style="font-size:13px">${list.length} suchen</span></div>
-    ${list.map(b => `<div class="seek"><div><strong>${esc(b.name)}</strong><span class="st">${esc(label(b.strength))}</span>${inTeam(b.name) ? '<span class="muted" style="font-size:12px"> · schon im Team</span>' : ''}</div>
-      <div class="row">${mine && mine.id !== b.id && !inTeam(b.name) ? `<button class="btn small primary" data-pair="${b.id}">Team bilden</button>` : ''}${(mine && mine.id === b.id) || edit ? `<button class="btn small danger" data-seekdel="${b.id}">✕</button>` : ''}</div></div>`).join('') || '<p class="muted">Niemand sucht gerade. Trag dich ein, wenn dir ein Partner fehlt.</p>'}
-    ${!mine ? `<div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:10px"><span class="eyebrow">Ich suche einen Partner</span>
+  main.innerHTML = `${editBtn()}
+    <div class="card stack"><div class="sub-h"><h2>Spielerbörse</h2><span class="muted" style="font-size:13px">${list.length} suchen</span></div>
+      <p class="muted" style="font-size:14px">Nur für die, die noch keinen Partner für Bierpong und LAG haben. Wer schon ein Team hat, muss hier nichts tun.</p>
+      ${list.map(b => `<div class="seek"><div><strong>${esc(b.name)}</strong><span class="st">${esc(strengthLabel(b.strength))}</span>${inTeam(b.name) ? '<span class="muted" style="font-size:12px"> · schon im Team</span>' : ''}</div>
+        <div class="row">${mine && mine.id !== b.id && !inTeam(b.name) ? `<button class="btn small primary" data-pair="${b.id}">Team bilden</button>` : ''}${(mine && mine.id === b.id) || edit ? `<button class="btn small danger" data-seekdel="${b.id}">✕</button>` : ''}</div></div>`).join('') || '<p class="muted">Niemand sucht gerade.</p>'}
+    </div>
+    ${!mine ? `<div class="card stack"><h3>Ich suche einen Mitspieler</h3>
       <input type="text" id="seekName" placeholder="Dein Name" value="${esc(ME)}" maxlength="20">
       <div class="row"><span class="muted" style="font-size:14px">Meine Stärke:</span><div class="chip-pick">${STRENGTHS.map(([k,l]) => `<button data-strength="${k}" class="${seekStrength===k?'on':''}">${l}</button>`).join('')}</div></div>
-      <div><button class="btn primary" id="seekAdd">Eintragen</button></div></div>` : `<p class="muted" style="font-size:13px">Du stehst in der Börse (${esc(label(mine.strength))}). Tipp bei jemandem auf „Team bilden“, dann wird das Team-Formular ausgefüllt.</p>`}
-  </div>`;
+      <div><button class="btn primary" id="seekAdd">In die Börse eintragen</button></div></div>`
+    : `<div class="card"><p>Du stehst in der Börse als <strong>${esc(strengthLabel(mine.strength))}</strong>. Tipp bei jemandem auf „Team bilden“: Das Team-Formular beim Bierpong wird dann mit euch beiden ausgefüllt, du trägst nur noch den Teamnamen ein.</p></div>`}`;
+  wireEdit(); wireBoerse();
+}
+function addSeek(name, strength){
+  if(!name) return toast('Bitte deinen Namen eintragen.', true); if(!strength) return toast('Bitte eine Stärke antippen.', true);
+  if(Object.values(D.boerse).some(b => (b.name||'').toLowerCase() === name.toLowerCase())) return toast('Du stehst schon in der Börse.', true);
+  return R('boerse/' + uid()).set({name, strength, at: firebase.database.ServerValue.TIMESTAMP}).then(() => toast('Du stehst in der Börse')).catch(e => toast(e.message, true));
 }
 function wireBoerse(){
   main.querySelectorAll('[data-strength]').forEach(b => b.onclick = () => { seekStrength = b.dataset.strength; main.querySelectorAll('[data-strength]').forEach(x => x.classList.toggle('on', x === b)); });
-  if($('#seekAdd')) $('#seekAdd').onclick = () => { const name = $('#seekName').value.trim(); if(!name) return toast('Bitte deinen Namen eintragen.', true); if(!seekStrength) return toast('Bitte eine Stärke antippen.', true);
-    if(!ME) setMe(name); R('boerse/' + uid()).set({name, strength: seekStrength, at: firebase.database.ServerValue.TIMESTAMP}).then(() => toast('Du stehst in der Börse')).catch(e => toast(e.message, true)); };
+  if($('#seekAdd')) $('#seekAdd').onclick = () => { const name = $('#seekName').value.trim(); if(name && !ME) setMe(name); addSeek(name, seekStrength); };
   main.querySelectorAll('[data-seekdel]').forEach(b => b.onclick = () => R('boerse/' + b.dataset.seekdel).remove());
   main.querySelectorAll('[data-pair]').forEach(b => b.onclick = () => { const other = D.boerse[b.dataset.pair]; if(!other) return; const me = Object.entries(D.boerse).find(([,x]) => (x.name||'').toLowerCase() === ME.toLowerCase());
-    editItem = null; render(); const f = $('#tn'); if(f){ $('#tp1').value = ME; $('#tp2').value = other.name; f.focus(); toast(`Teamnamen eintragen und speichern. ${esc(other.name)} und du werden dann aus der Börse genommen.`); f.dataset.pairIds = [b.dataset.pair, me ? me[0] : ''].join(','); } });
+    pendingPair = {p1: ME, p2: other.name, ids: [b.dataset.pair, me ? me[0] : ''].filter(Boolean)}; editItem = null; tab = 'tour'; ls.set('jga-tab', tab); render(); toast(`Teamnamen eintragen und speichern. ${other.name} und du kommen dann aus der Börse.`); window.scrollTo({top: 0}); });
 }
 function findTeams(gid){ for(const g of ['A','B']){ const f = GROUP_GAMES[g].find(x => x[0] === gid); if(f) return [f[1], f[2]]; } const ko = koTeams(); return {S1: ko.s1, S2: ko.s2, F: ko.f, P3: ko.p3}[gid] || [null,null]; }
 
